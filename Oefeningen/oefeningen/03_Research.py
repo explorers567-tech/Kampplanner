@@ -25,4 +25,6 @@ for rij in rijen[1:]:
         if naam not in telling:
             telling[naam] = {}
         telling[naam][code] = telling[naam].get(code, 0) + 1
-        print(f"{naam} heeft code {code} {telling[naam][code]} keer gezien.")
+        # print(f"{naam} heeft code {code} {telling[naam][code]} keer gezien.")
+        for naam, codes in telling.items():
+         print(f"{naam}: {codes}")
