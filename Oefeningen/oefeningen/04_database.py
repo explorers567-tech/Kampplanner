@@ -1,19 +1,25 @@
+import os
 import sqlite3
 from openpyxl import load_workbook
 
-# 1. Namen uit Excel lezen (je code uit oefening 2)
+# 1. Namen uit Excel lezen
 wb = load_workbook("data/WieWatWaarWanneer.xlsx")
 ws = wb.active
 namen = []
 
 for rij in ws.iter_rows(max_row=1, values_only=True):
     for cel in rij[4:]:
-        if cel is not None:
-            namen.append(cel)
+        if cel is None:
+            continue
+        naam = str(cel).strip()
+        if naam == "":
+            continue
+        namen.append(naam)
 
-# 2. Database openen (het bestand wordt aangemaakt als het niet bestaat)
+# 2. Database openen
 conn = sqlite3.connect("data/kampplanner.db")
 cur = conn.cursor()
+print("Database:", os.path.abspath("data/kampplanner.db"))
 
 # 3. Tabel aanmaken
 cur.execute("""
@@ -30,8 +36,12 @@ for naam in namen:
         continue
     cur.execute("INSERT OR IGNORE INTO persons (naam) VALUES (?)", (naam,))
 
-# 5. Controleren
-for rij in cur.execute("SELECT id, naam FROM persons ORDER BY naam"):
+conn.commit()
+
+# 5. Controleren (na de commit)
+print("Aantal personen:", cur.execute("SELECT COUNT(*) FROM persons").fetchone()[0])
+
+for rij in cur.execute("SELECT id, naam, length(naam) FROM persons ORDER BY id"):
     print(rij)
 
 conn.close()
