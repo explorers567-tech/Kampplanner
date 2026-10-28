@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block inhoud %}
+<h1 class="h3">Beheer</h1>
+<div class="d-flex flex-wrap gap-2 mb-3">
+  <a class="btn btn-outline-success" href="{{ url_for('admin_import') }}">Aanwezigheid importeren</a>
+  <a class="btn btn-success" href="{{ url_for('admin_planning') }}">Planning bewerken</a>
+  <a class="btn btn-success" href="{{ url_for('admin_auto') }}">Automatisch indelen</a>
+  <a class="btn btn-outline-success" href="{{ url_for('admin_activiteiten') }}">Activiteiten</a>
+  <a class="btn btn-outline-success" href="{{ url_for('admin_eisen') }}">Slapen en opstaan</a>
+</div>
+
+<form method="post" action="{{ url_for('admin_toevoegen') }}"
+      class="row g-2 align-items-center mb-4">
+  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+  <div class="col-auto"><input class="form-control" name="naam" placeholder="Nieuwe persoon" required></div>
+  <div class="col-auto form-check">
+    <input class="form-check-input" type="checkbox" name="is_ouderraad" value="1" id="nieuw_or">
+    <label class="form-check-label" for="nieuw_or">Ouderraad</label>
+  </div>
+  <div class="col-auto"><button class="btn btn-success" type="submit">Toevoegen</button></div>
+</form>
+
+<div class="table-responsive">
+  <table class="table table-sm align-middle">
+    <thead>
+      <tr>
+        <th>Persoon</th><th>Speltak</th><th>Organiseert</th>
+        <th>Dagdelen ingevuld</th><th>Bestanden</th>
+        <th>Persoonlijke link</th><th>Acties</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in personen %}
+      <tr>
+        <td>
+          <form method="post" action="{{ url_for('admin_wijzig', person_id=p['id']) }}"
+                class="d-flex gap-2 align-items-center">
+            <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+            <input class="form-control form-control-sm" name="naam" value="{{ p['naam'] }}" required>
+            <label class="form-check-label small">
+              <input class="form-check-input" type="checkbox" name="is_ouderraad" value="1"
+                     {% if p['is_ouderraad'] %}checked{% endif %}> OR
+            </label>
+            <button class="btn btn-sm btn-outline-success" type="submit">Opslaan</button>
+          </form>
+        </td>
+        <td>{{ p["speltak"] or "—" }}</td>
+        <td>{{ p["n_org"] }}</td>
+        <td>{{ p["n_beschikbaar"] }}</td>
+        <td>{{ p["n_uploads"] }}</td>
+        <td>
+          <input class="form-control form-control-sm" readonly onclick="this.select()"
+                 value="{{ url_for('inloggen_token', token=p['token'], _external=True) }}">
+        </td>
+        <td class="text-nowrap">
+          <a class="btn btn-sm btn-outline-primary"
+             href="{{ url_for('admin_profiel', person_id=p['id']) }}">Profiel</a>
+          <a class="btn btn-sm btn-outline-secondary"
+             href="{{ url_for('admin_invoer', person_id=p['id']) }}">Aanwezigheid</a>
+
+          <form method="post" class="d-inline"
+                action="{{ url_for('admin_nieuw_token', person_id=p['id']) }}"
+                onsubmit="return confirm('De oude link van {{ p['naam'] }} werkt daarna niet meer. Doorgaan?')">
+            <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+            <button class="btn btn-sm btn-outline-warning" type="submit">Nieuwe link</button>
+          </form>
+
+          <form method="post" class="d-inline"
+                action="{{ url_for('admin_verwijder', person_id=p['id']) }}"
+                onsubmit="return confirm('{{ p['naam'] }} verwijderen, inclusief planning, aanwezigheid en bestanden? Dit kan niet ongedaan worden.')">
+            <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+            <button class="btn btn-sm btn-outline-danger" type="submit">Verwijderen</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

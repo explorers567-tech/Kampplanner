@@ -1,15 +1,7 @@
-from openpyxl import load_workbook
+import sqlite3
 
-wb = load_workbook("data/WieWatWaarWanneer.xlsx")
-ws = wb.active
-
-namen = []
-
-# Print de eerste 5 rijen om te zien wat erin staat
-for rij in ws.iter_rows(max_row=1, values_only=True):
-    for cel in rij[4:]:
-        if cel is not None:
-            namen.append(cel)
-    
-print(namen)
-print(f"aantal personen: {len(namen)}")
+con = sqlite3.connect("data/kampplanner.db")
+for tabel in ["persons", "slots", "roles", "assignments"]:
+    print(tabel, [k[1] for k in con.execute(f"PRAGMA table_info({tabel})")])
+    print("  ", con.execute(f"SELECT * FROM {tabel} LIMIT 2").fetchall())
+con.close()

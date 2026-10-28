@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block inhoud %}
+<h1 class="h3">Wie Wat Waar Wanneer</h1>
+
+<style>
+  .schema th, .schema td { white-space: nowrap; text-align: center; font-size: .85rem; }
+  .schema td.tijd, .schema td.titel { text-align: left; }
+  .schema .dag td { background: #1f6f3d; color: #fff; font-weight: bold; text-align: left; }
+</style>
+
+<div class="table-responsive">
+  <table class="table table-sm table-bordered schema">
+    <thead>
+      <tr>
+        <th>Tijd</th>
+        <th>Activiteit</th>
+        {% for p in personen %}<th>{{ p["naam"] }}</th>{% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% set ns = namespace(dag=None) %}
+      {% for s in slots %}
+        {% if s["dag"] != ns.dag %}
+          {% set ns.dag = s["dag"] %}
+          <tr class="dag"><td colspan="{{ personen|length + 2 }}">{{ s["dag"] }}</td></tr>
+        {% endif %}
+        <tr>
+          <td class="tijd">{{ s["start"] }}</td>
+          <td class="titel">{{ s["titel"]|trim }}</td>
+          {% for p in personen %}
+            <td>{{ rol(cellen.get((s["id"], p["id"]), "")) }}</td>
+          {% endfor %}
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% include "_legenda.html" %}
+{% endblock %}

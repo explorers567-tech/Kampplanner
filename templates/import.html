@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block inhoud %}
+<h1 class="h3">Aanwezigheid importeren uit Excel</h1>
+<p class="text-muted"><a href="{{ url_for('admin') }}">← terug naar beheer</a></p>
+
+<div class="row g-4">
+  <div class="col-md-6">
+    <h2 class="h5">1. Download het sjabloon</h2>
+    <p>Een rij per persoon, een kolom per dagdeel. Het bestand is al ingevuld met wat er nu in de app staat,
+       dus je kunt het ook gebruiken om alles in één keer aan te passen.</p>
+    <a class="btn btn-outline-success" href="{{ url_for('admin_import_sjabloon') }}">Sjabloon downloaden (.xlsx)</a>
+  </div>
+
+  <div class="col-md-6">
+    <h2 class="h5">2. Upload het ingevulde bestand</h2>
+    <p>Je ziet eerst een voorbeeld van wat er verandert. Pas daarna wordt er iets opgeslagen.
+       Lege cellen laten de bestaande keuze staan.</p>
+    <form method="post" enctype="multipart/form-data">
+      <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+      <input type="hidden" name="actie" value="controleren">
+      <div class="mb-3">
+        <input class="form-control" type="file" name="bestand"
+               accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required>
+      </div>
+      <button class="btn btn-success" type="submit">Controleren</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

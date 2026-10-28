@@ -1,0 +1,11 @@
+<details class="mt-4 legenda">
+  <summary><strong>Legenda: wat betekenen de pictogrammen?</strong></summary>
+  <div class="row mt-2">
+    {% for r in rol_legenda() %}
+      <div class="col-12 col-sm-6 col-lg-4 mb-1">
+        <span class="rol" style="cursor: default">{{ r["icoon"] or r["code"] }}</span>
+        <small><strong>{{ r["code"] }}</strong> – {{ r["omschrijving"] }}</small>
+      </div>
+    {% endfor %}
+  </div>
+</details>

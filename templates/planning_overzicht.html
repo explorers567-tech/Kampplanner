@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block inhoud %}
+<h1 class="h3">Planning bewerken</h1>
+<p class="text-muted">Kies een slot om te bepalen wie wat doet.
+   <a href="{{ url_for('admin') }}">← terug naar beheer</a></p>
+
+<div class="table-responsive">
+  <table class="table table-sm align-middle">
+    <thead>
+      <tr><th>Tijd</th><th>Activiteit</th><th>Ingepland</th><th>Aanwezig (ja)</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% set ns = namespace(dag=None) %}
+      {% for s in slots %}
+        {% if s["dag"] != ns.dag %}
+          {% set ns.dag = s["dag"] %}
+          <tr class="table-success"><td colspan="5"><strong>{{ s["dag"] }}</strong></td></tr>
+        {% endif %}
+        <tr>
+          <td>{{ s["start"] }}</td>
+          <td>{{ s["titel"]|trim }}</td>
+          <td>{{ s["n_ingepland"] }}</td>
+          <td>{{ s["n_ja"] }}</td>
+          <td><a class="btn btn-sm btn-outline-success"
+                 href="{{ url_for('admin_planning_slot', slot_id=s['id']) }}">Bewerk</a></td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block inhoud %}
+<h1 class="h3">Schema van {{ persoon["naam"] }}</h1>
+<a class="btn btn-success mb-3" href="/invoer">Mijn beschikbaarheid invullen</a>
+
+<div class="table-responsive">
+  <table class="table table-striped">
+    <thead>
+      <tr><th>Dag</th><th>Tijd</th><th>Activiteit</th><th>Taak</th></tr>
+    </thead>
+    <tbody>
+      {% for r in rijen %}
+      <tr>
+        <td>{{ r["dag"] }}</td>
+        <td>{{ r["start"] }}</td>
+        <td>{{ r["titel"]|trim }}</td>
+        <td>{{ rol(r["code"]) }} {{ r["omschrijving"] or r["code"] }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% include "_legenda.html" %}
+{% endblock %}

@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block inhoud %}
+<h1 class="h3">Overzicht hele weekend</h1>
+
+<div class="table-responsive">
+  <table class="table table-striped">
+    <thead>
+      <tr><th>Naam</th><th>Rol</th><th>Aantal</th></tr>
+    </thead>
+    <tbody>
+      {% for rij in rijen %}
+      <tr>
+        <td>{{ rij["naam"] }}</td>
+        <td>{{ rol(rij["code"]) }} <small class="text-muted">{{ rij["code"] }}</small></td>
+        <td>{{ rij["aantal"] }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block inhoud %}
+<h1 class="h3">Automatisch indelen</h1>
+<p class="text-muted"><a href="{{ url_for('admin') }}">← terug naar beheer</a></p>
+
+<div class="alert alert-info">
+  Dit is een <strong>voorbeeld</strong>: er is nog niets opgeslagen.
+  De indeling vult alleen aan. Wat je handmatig hebt ingevuld blijft staan en telt mee.
+  Alleen "ja" wordt zonder meer ingepland, "misschien" alleen bij een tekort, en wie "nee"
+  heeft gekozen of niets heeft ingevuld wordt niet ingedeeld.
+</div>
+
+{% if meldingen %}
+  <h2 class="h5">Aandachtspunten</h2>
+  <ul class="list-group mb-4">
+    {% for m in meldingen %}
+      <li class="list-group-item {% if m['niveau'] == 'tekort' %}list-group-item-danger{% else %}list-group-item-warning{% endif %}">
+        {{ m["tekst"] }}
+      </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <div class="alert alert-success">Geen tekorten gevonden.</div>
+{% endif %}
+
+<h2 class="h5">Voorgestelde toewijzingen ({{ toewijzingen|length }})</h2>
+{% if toewijzingen %}
+<div class="table-responsive">
+  <table class="table table-sm align-middle">
+    <thead><tr><th>Slot</th><th>Persoon</th><th>Taak</th><th>Reden</th></tr></thead>
+    <tbody>
+      {% for t in toewijzingen %}
+        <tr>
+          <td>{{ t["slot"]["dag"] }} {{ t["slot"]["start"] }} {{ t["slot"]["titel"]|trim }}</td>
+          <td>{{ t["naam"] }}{% if t["onzeker"] %} <span class="badge text-bg-warning">misschien</span>{% endif %}</td>
+          <td>{{ rol(t["code"]) }} <small class="text-muted">{{ t["code"] }}</small></td>
+          <td>{{ t["reden"] }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+  <p class="text-muted">Er is niets aan te vullen.</p>
+{% endif %}
+
+<div class="d-flex gap-2 mt-3">
+  <form method="post" onsubmit="return confirm('Deze voorgestelde indeling opslaan? Een eerdere automatische indeling wordt vervangen.')">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+    <input type="hidden" name="actie" value="toepassen">
+    <button class="btn btn-success" type="submit" {% if not toewijzingen %}disabled{% endif %}>Indeling opslaan</button>
+  </form>
+  {% if n_auto %}
+  <form method="post" onsubmit="return confirm('Alle {{ n_auto }} automatische toewijzingen verwijderen? Handmatige toewijzingen blijven staan.')">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+    <input type="hidden" name="actie" value="wissen">
+    <button class="btn btn-outline-danger" type="submit">Automatische indeling wissen ({{ n_auto }})</button>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}

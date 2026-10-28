@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block inhoud %}
+<h1 class="h3">Activiteiten</h1>
+<p class="text-muted">Spellen, borrel, opening, sluiting, diner ... Per activiteit kies je de slots,
+   de rolcode per slot en wie het organiseert. <a href="{{ url_for('admin') }}">← terug naar beheer</a></p>
+
+<form method="post" class="row g-2 align-items-center mb-4">
+  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+  <div class="col-auto"><input class="form-control" name="naam" placeholder="Nieuwe activiteit, bijv. Zaterdag - Borrel" required></div>
+  <div class="col-auto"><button class="btn btn-success" type="submit">Toevoegen</button></div>
+</form>
+
+<div class="table-responsive">
+  <table class="table table-sm align-middle">
+    <thead><tr><th>Activiteit</th><th>Slots</th><th>Organisatoren</th><th></th></tr></thead>
+    <tbody>
+      {% for o in organisaties %}
+      <tr>
+        <td>{{ o["naam"] }}</td>
+        <td>{{ o["n_slots"] }}</td>
+        <td>{{ o["organisatoren"] or "—" }}</td>
+        <td><a class="btn btn-sm btn-outline-success"
+               href="{{ url_for('admin_activiteit', org_id=o['id']) }}">Bewerk</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

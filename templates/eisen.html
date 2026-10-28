@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block inhoud %}
+<h1 class="h3">Regels voor slapen en opstaan</h1>
+<p class="text-muted">Vink per slot aan voor welke speltakken leiding gereserveerd moet worden.
+   Het aantal leiding per speltak staat hieronder en geldt voor elke speltak apart.
+   <a href="{{ url_for('admin') }}">← terug naar beheer</a></p>
+
+<p>
+  {% for sp in speltakken %}
+    <span class="badge text-bg-secondary">{{ sp["naam"] }}: {{ sp["min_leiding"] }}</span>
+  {% endfor %}
+</p>
+
+<form method="post">
+  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+  <div class="table-responsive">
+    <table class="table table-sm align-middle">
+      <thead>
+        <tr>
+          <th>Tijd</th><th>Activiteit</th>
+          {% for sp in speltakken %}<th class="text-center">{{ sp["naam"] }}</th>{% endfor %}
+          <th>Rolcode</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% set ns = namespace(dag=None) %}
+        {% for s in slots %}
+          {% if s["dag"] != ns.dag %}
+            {% set ns.dag = s["dag"] %}
+            <tr class="table-success"><td colspan="{{ speltakken|length + 3 }}"><strong>{{ s["dag"] }}</strong></td></tr>
+          {% endif %}
+          {% set actief = codes.get(s["id"]) %}
+          <tr {% if actief %}class="table-warning"{% endif %}>
+            <td>{{ s["start"] }}</td>
+            <td>{{ s["titel"]|trim }}</td>
+            {% for sp in speltakken %}
+              <td class="text-center">
+                <input class="form-check-input" type="checkbox"
+                       name="e_{{ s['id'] }}_{{ sp['id'] }}" value="1"
+                       {% if eisen.get((s["id"], sp["id"])) %}checked{% endif %}>
+              </td>
+            {% endfor %}
+            <td>
+              <select class="form-select form-select-sm" name="code_{{ s['id'] }}">
+                {% for code, omschrijving in opties.items() %}
+                  <option value="{{ code }}"
+                    {% if (actief and actief == code) or (not actief and code == "K") %}selected{% endif %}>
+                    {{ code }} – {{ omschrijving }}
+                  </option>
+                {% endfor %}
+              </select>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <button class="btn btn-success" type="submit">Opslaan</button>
+</form>
+{% endblock %}

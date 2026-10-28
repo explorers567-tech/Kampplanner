@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block inhoud %}
+<h1 class="h3">Profiel van {{ persoon["naam"] }}</h1>
+<p class="text-muted"><a href="{{ url_for('admin') }}">← terug naar beheer</a></p>
+
+<form method="post">
+  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+
+  <div class="mb-4">
+    <strong>Leiding van welke speltak(ken)?</strong>
+    <div class="form-text mb-2">Meerdere speltakken mogen. Bij slapen en opstaan wordt
+      iemand per slot maar voor één speltak ingedeeld.</div>
+    {% for s in speltakken %}
+      <div class="form-check">
+        <input class="form-check-input" type="checkbox" name="speltak"
+               value="{{ s['id'] }}" id="sp{{ s['id'] }}"
+               {% if s["gekozen"] %}checked{% endif %}>
+        <label class="form-check-label" for="sp{{ s['id'] }}">{{ s["naam"] }}</label>
+      </div>
+    {% endfor %}
+  </div>
+
+  <div class="mb-4">
+    <strong>Welk spel of welke activiteit organiseert deze persoon?</strong>
+    <div class="form-text mb-2">Een persoon kan er meer dan één kiezen.
+      Nieuwe activiteiten maak je onder <a href="{{ url_for('admin_activiteiten') }}">Activiteiten</a>.</div>
+    {% for o in organisaties %}
+      <div class="form-check">
+        <input class="form-check-input" type="checkbox" name="organisatie"
+               value="{{ o['id'] }}" id="org{{ o['id'] }}"
+               {% if o["gekozen"] %}checked{% endif %}>
+        <label class="form-check-label" for="org{{ o['id'] }}">{{ o["naam"] }}</label>
+      </div>
+    {% endfor %}
+  </div>
+
+  <button class="btn btn-success" type="submit">Opslaan</button>
+</form>
+{% endblock %}

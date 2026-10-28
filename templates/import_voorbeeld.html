@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block inhoud %}
+<h1 class="h3">Voorbeeld van de import</h1>
+<p class="text-muted"><a href="{{ url_for('admin_import') }}">← opnieuw beginnen</a></p>
+
+<div class="alert alert-info">
+  Er is nog <strong>niets opgeslagen</strong>. Bekijk hieronder wat er verandert.
+  Gelezen: {{ uitkomst["n_personen"] }} personen.
+  <strong>{{ uitkomst["n_nieuw"] }}</strong> nieuw,
+  <strong>{{ uitkomst["n_gewijzigd"] }}</strong> gewijzigd,
+  {{ uitkomst["n_gelijk"] }} ongewijzigd.
+</div>
+
+{% if uitkomst["meldingen"] %}
+  <h2 class="h5">Aandachtspunten</h2>
+  <ul class="list-group mb-4">
+    {% for m in uitkomst["meldingen"] %}
+      <li class="list-group-item {% if m['niveau'] == 'fout' %}list-group-item-danger{% else %}list-group-item-warning{% endif %}">
+        {{ m["tekst"] }}
+      </li>
+    {% endfor %}
+  </ul>
+{% endif %}
+
+{% if uitkomst["wijzigingen"] %}
+  <h2 class="h5">Wijzigingen</h2>
+  <div class="table-responsive">
+    <table class="table table-sm">
+      <thead><tr><th>Persoon</th><th>Dagdeel</th><th>Nu</th><th>Wordt</th></tr></thead>
+      <tbody>
+        {% for w in uitkomst["wijzigingen"][:300] %}
+          <tr>
+            <td>{{ w["naam"] }}</td><td>{{ w["dagdeel"] }}</td>
+            <td>{{ w["oud"] or "—" }}</td><td><strong>{{ w["nieuw"] }}</strong></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if uitkomst["wijzigingen"]|length > 300 %}
+    <p class="text-muted">Alleen de eerste 300 van {{ uitkomst["wijzigingen"]|length }} wijzigingen worden getoond.</p>
+  {% endif %}
+{% else %}
+  <p class="text-muted">Er is niets te wijzigen.</p>
+{% endif %}
+
+<div class="d-flex gap-2 mt-3">
+  <form method="post">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+    <input type="hidden" name="actie" value="toepassen">
+    <input type="hidden" name="sleutel" value="{{ sleutel }}">
+    <button class="btn btn-success" type="submit" {% if not uitkomst["records"] %}disabled{% endif %}>
+      {{ uitkomst["records"]|length }} wijzigingen opslaan
+    </button>
+  </form>
+  <a class="btn btn-outline-secondary" href="{{ url_for('admin_import') }}">Annuleren</a>
+</div>
+{% endblock %}

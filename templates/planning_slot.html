@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block inhoud %}
+<h1 class="h3">{{ slot["dag"] }} {{ slot["start"] }}: {{ slot["titel"]|trim }}</h1>
+<p class="text-muted">Kies per persoon een taak. "—" laat het vak leeg.
+   <a href="{{ url_for('admin_planning') }}">← terug naar alle slots</a></p>
+
+<form method="post">
+  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+  <div class="table-responsive">
+    <table class="table table-sm align-middle">
+      <thead>
+                <tr><th>Persoon</th><th>Speltak</th><th>Aanwezig dit dagdeel</th><th>Taak</th></tr>      </thead>
+      <tbody>
+        {% for r in rijen %}
+          {% set bezet = r["code"] and r["code"] not in ["#", "?"] %}
+          <tr {% if r["status"] == "nee" and bezet %}class="table-warning"{% endif %}>
+            <td>{{ r["naam"] }}{% if r["is_ouderraad"] %} <small class="text-muted">(OR)</small>{% endif %}</td>
+            <td>
+              {% if r["status"] == "ja" %}<span class="badge text-bg-success">ja</span>
+              {% elif r["status"] == "misschien" %}<span class="badge text-bg-warning">misschien</span>
+              {% elif r["status"] == "nee" %}<span class="badge text-bg-danger">nee</span>
+              {% else %}<span class="text-muted">—</span>{% endif %}
+              {% if r["status"] == "nee" and bezet %}
+                <small class="text-danger">heeft "nee" aangegeven</small>
+              {% endif %}
+            </td>
+            <td>
+              <select class="form-select form-select-sm" name="p_{{ r['id'] }}">
+                <option value="">—</option>
+                {% for code, omschrijving in opties.items() %}
+                  <option value="{{ code }}" {% if r["code"] == code %}selected{% endif %}>
+                    {{ code }} – {{ omschrijving }}
+                  </option>
+                {% endfor %}
+              </select>
+            </td>
+            <td>{{ r["speltak"] or "—" }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <button class="btn btn-success" type="submit">Opslaan</button>
+</form>
+{% endblock %}

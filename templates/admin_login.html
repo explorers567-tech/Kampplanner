@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block inhoud %}
+<h1 class="h3">Beheer: inloggen</h1>
+<form method="post" class="col-md-4">
+  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+  <div class="mb-3">
+    <label class="form-label" for="gebruikersnaam">Gebruikersnaam</label>
+    <input class="form-control" id="gebruikersnaam" name="gebruikersnaam" required autofocus>
+  </div>
+  <div class="mb-3">
+    <label class="form-label" for="wachtwoord">Wachtwoord</label>
+    <input class="form-control" type="password" id="wachtwoord" name="wachtwoord" required>
+  </div>
+  <button class="btn btn-success" type="submit">Inloggen</button>
+</form>
+{% endblock %}
