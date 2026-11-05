@@ -29,19 +29,23 @@
   </div>
 
   <div class="mb-4">
-    <strong>Slots en rolcode</strong>
+    <strong>Slots, rolcode en wat er nodig is</strong>
     <div class="form-text mb-2">Kies per slot welke rolcode de organisatoren krijgen
-      (bijv. V voor voorbereiden, O voor organiseren). "—" betekent: hoort er niet bij.</div>
+      (bijv. V voor voorbereiden, O voor organiseren). "—" betekent: hoort er niet bij.
+      Bij <strong>Nodig</strong> vul je in hoeveel leiding er verder nodig is, bijvoorbeeld
+      <code>6 L</code> of <code>2 V, 4 L</code>. Dat geldt voor elk slot, ook de voorbereiding.
+      Organisatoren die dezelfde rolcode krijgen tellen mee in het aantal.</div>
     <div class="table-responsive">
       <table class="table table-sm align-middle">
+        <thead><tr><th>Tijd</th><th>Titel</th><th>Organisatoren krijgen</th><th>Nodig</th></tr></thead>
         <tbody>
           {% set ns = namespace(dag=None) %}
           {% for s in slots %}
             {% if s["dag"] != ns.dag %}
               {% set ns.dag = s["dag"] %}
-              <tr class="table-success"><td colspan="3"><strong>{{ s["dag"] }}</strong></td></tr>
+              <tr class="table-success"><td colspan="4"><strong>{{ s["dag"] }}</strong></td></tr>
             {% endif %}
-            <tr {% if s["rol_code"] %}class="table-warning"{% endif %}>
+            <tr {% if s["rol_code"] or s["b_tekst"] %}class="table-warning"{% endif %}>
               <td>{{ s["start"] }}</td>
               <td>{{ s["titel"]|trim }}</td>
               <td>
@@ -54,6 +58,10 @@
                   {% endfor %}
                 </select>
               </td>
+              <td style="width: 14rem">
+                <input class="form-control form-control-sm" name="nodig_{{ s['id'] }}"
+                       value="{{ s['b_tekst'] }}" placeholder="nodig, bijv. 6 L" maxlength="120">
+              </td>
             </tr>
           {% endfor %}
         </tbody>
@@ -62,12 +70,5 @@
   </div>
 
   <button class="btn btn-success" type="submit">Opslaan</button>
-</form>
-
-<form method="post" action="{{ url_for('admin_activiteit_verwijder', org_id=org['id']) }}"
-      class="mt-4"
-      onsubmit="return confirm('Deze activiteit verwijderen? De koppelingen met slots en organisatoren verdwijnen. Bestaande toewijzingen in de planning blijven staan.')">
-  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
-  <button class="btn btn-outline-danger" type="submit">Activiteit verwijderen</button>
 </form>
 {% endblock %}

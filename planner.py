@@ -13,6 +13,7 @@ een voorbeeld kunt bekijken. Regels:
 4. Handmatige toewijzingen worden nooit overschreven.
 """
 import re
+import zlib
 from collections import Counter, defaultdict
 
 # Rolcodes die voor het tellen als hetzelfde gelden
@@ -22,6 +23,11 @@ GELIJK = {"K": {"K", "K*"}, "K*": {"K", "K*"}}
 def _groep(code):
     return "K" if code in ("K", "K*") else code
 
+def _lot(slot_id, pid):
+    """Vaste, maar per slot wisselende volgorde voor als iedereen even vaak aan de beurt is geweest.
+    Zo wint niet steeds iemand met een naam vroeg in het alfabet, en blijft de uitkomst
+    bij opnieuw draaien hetzelfde."""
+    return zlib.crc32(f"{slot_id}:{pid}".encode())
 
 def maak_planning(d):
     slots = {s["id"]: s for s in d["slots"]}
@@ -117,7 +123,7 @@ def maak_planning(d):
             aantal = len(al)
 
             if nodig > 0:
-                sleutel = lambda p: (teller[(p, _groep(code))], totaal[p], naam[p])
+                sleutel = lambda p: (teller[(p, _groep(code))], totaal[p], _lot(sid, p), naam[p])
                 cands = [p for p in kandidaten(e) if p not in gebruikt]
                 ja = sorted([p for p in cands if status_van(p, slot) == "ja"], key=sleutel)
                 mis = sorted([p for p in cands if status_van(p, slot) == "misschien"], key=sleutel)
@@ -148,7 +154,78 @@ def maak_planning(d):
                         f"{omschrijf(slot)}: {sp['naam']} heeft {aantal} van "
                         f"{min_leiding} leiding ({reden}).")
 
+    # ---- 3. algemene behoefte per slot (bijv. opbouw: 4 personen met rolcode OB) ----
+    for b in sorted(d.get("behoeften", []), key=lambda r: slots[r["slot_id"]]["volgorde"]):
+        slot = slots[b["slot_id"]]
+        sid, code = slot["id"], b["rol_code"]
+        gelijk = GELIJK.get(code, {code})
+        al = ([p for (s, p), c in bezet.items() if s == sid and c in gelijk] +
+              [p for (s, p), t in nieuw.items() if s == sid and t["code"] in gelijk])
+        nodig = b["aantal"] - len(al)
+        if nodig <= 0:
+            continue
+
+        sleutel = lambda p: (teller[(p, _groep(code))], totaal[p], _lot(sid, p), naam[p])
+        vrij = [p for p in naam if is_vrij(sid, p)]
+        ja = sorted([p for p in vrij if status_van(p, slot) == "ja"], key=sleutel)[:nodig]
+        for p in ja:
+            toewijzen(sid, p, code, f"nodig: {b['aantal']}x {code}")
+        nodig -= len(ja)
+
+        mis = sorted([p for p in vrij if status_van(p, slot) == "misschien" and is_vrij(sid, p)],
+                     key=sleutel)[:nodig]
+        for p in mis:
+            toewijzen(sid, p, code, f"nodig: {b['aantal']}x {code}", onzeker=True)
+            melding("info", f"{naam[p]} ('misschien') is nodig voor {code} bij {omschrijf(slot)}.")
+        nodig -= len(mis)
+
+        if nodig > 0:
+            nee = [p for p in vrij if status_van(p, slot) == "nee"]
+            zonder = [p for p in vrij if status_van(p, slot) is None]
+            melding("tekort", f"{omschrijf(slot)}: {code} heeft {b['aantal'] - nodig} van "
+                              f"{b['aantal']} personen ({len(nee)} niet aanwezig, "
+                              f"{len(zonder)} nog niet ingevuld).")
+
     toewijzingen = sorted(nieuw.values(),
                           key=lambda t: (t["slot"]["volgorde"], t["reden"], t["naam"]))
     meldingen.sort(key=lambda m: (m["niveau"] != "tekort", m["tekst"]))
     return toewijzingen, meldingen
+
+def maak_overzicht(d, toewijzingen):
+    """Per persoon: wat is ingevuld, wat staat er al, wat wordt voorgesteld en waarom (niet).
+    Geeft een lijst dicts; wie niets krijgt voorgesteld staat bovenaan, met een reden."""
+    dagdelen = d.get("dagdelen") or sorted({(s["dag"], s["dagdeel"]) for s in d["slots"]})
+    speltak_van = defaultdict(list)
+    for sid, leden in d["speltak_leden"].items():
+        for p in leden:
+            speltak_van[p].append(d["speltakken"][sid]["naam"])
+    n_org = Counter()
+    for leden in d["org_leden"].values():
+        for p in leden:
+            n_org[p] += 1
+    handmatig = Counter(p for (s, p), c in d["bestaand"].items() if c not in ("#", "?"))
+    voorgesteld = Counter(t["person_id"] for t in toewijzingen)
+
+    rijen = []
+    for pid, naam in d["personen"].items():
+        tel = Counter(d["status"].get((pid, dag, dd)) for dag, dd in dagdelen)
+        ja, mis, nee = tel["ja"], tel["misschien"], tel["nee"]
+        leeg = len(dagdelen) - ja - mis - nee
+        reden = ""
+        if voorgesteld[pid] == 0:
+            if ja == 0 and mis == 0:
+                reden = ("Nog geen aanwezigheid ingevuld." if nee == 0
+                         else "Overal 'nee' ingevuld.")
+            elif ja == 0:
+                reden = "Alleen 'misschien' ingevuld: die worden alleen bij een tekort ingedeeld."
+            elif not speltak_van[pid] and not n_org[pid]:
+                reden = ("Geen speltak of activiteit gekoppeld, en er was geen 'nodig'-taak "
+                         "(zoals opbouw) die nog open stond.")
+            else:
+                reden = "Er stond niets meer open waarvoor deze persoon in aanmerking kwam."
+        rijen.append({"naam": naam, "speltak": ", ".join(speltak_van[pid]), "n_org": n_org[pid],
+                      "ja": ja, "misschien": mis, "nee": nee, "leeg": leeg,
+                      "totaal": len(dagdelen), "handmatig": handmatig[pid],
+                      "voorgesteld": voorgesteld[pid], "reden": reden})
+    rijen.sort(key=lambda r: (r["reden"] == "", r["naam"]))
+    return rijen

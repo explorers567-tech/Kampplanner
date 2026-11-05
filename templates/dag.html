@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block inhoud %}
+<h1 class="h3">{{ dag["naam"] }}</h1>
+<p class="text-muted"><a href="{{ url_for('admin_dagen') }}">← terug naar alle dagen</a></p>
+
+<form method="post" class="row g-2 align-items-end mb-4">
+  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+  <input type="hidden" name="actie" value="dag_opslaan">
+  <div class="col-md-4">
+    <label class="form-label" for="naam">Naam</label>
+    <input class="form-control" id="naam" name="naam" value="{{ dag['naam'] }}" maxlength="60" required>
+  </div>
+  <div class="col-md-3">
+    <label class="form-label" for="soort">Soort</label>
+    <select class="form-select" id="soort" name="soort">
+      {% for sleutel, naam in soorten.items() %}
+        <option value="{{ sleutel }}" {% if dag["soort"] == sleutel %}selected{% endif %}>{{ naam }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-md-3">
+    <div class="form-check mb-2">
+      <input class="form-check-input" type="checkbox" name="heeft_nacht" value="1" id="nacht"
+             {% if dag["heeft_nacht"] %}checked{% endif %}>
+      <label class="form-check-label" for="nacht">Overnachting</label>
+    </div>
+    <button class="btn btn-success" type="submit">Opslaan</button>
+  </div>
+</form>
+
+<h2 class="h5">Slots</h2>
+{% if slots %}
+<div class="table-responsive mb-4">
+  <table class="table table-sm align-middle">
+    <thead>
+      <tr><th>Tijd</th><th>Titel</th><th>Nodig</th><th>Ingepland</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for s in slots %}
+      {% set f = "slot" ~ s["id"] %}
+      <tr>
+        <td style="width: 7rem">
+          <form id="{{ f }}" method="post" action="{{ url_for('admin_slot_wijzig', slot_id=s['id']) }}">
+            <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+          </form>
+          <input form="{{ f }}" class="form-control form-control-sm" name="start" value="{{ s['start'] }}"
+                 pattern="\d{1,2}:\d{2}" required>
+        </td>
+        <td><input form="{{ f }}" class="form-control form-control-sm" name="titel" value="{{ s['titel']|trim }}" maxlength="120" required></td>
+        <td style="width: 15rem">
+          <input form="{{ f }}" class="form-control form-control-sm" name="nodig"
+                 value="{{ s['b_tekst'] }}" placeholder="bijv. 6 L, 2 OK" maxlength="120">
+          {% if s["excel_aantal"] is not none %}
+            <small class="text-muted">uit je Excel (kolom aantal): {{ s["excel_aantal"] }}</small>
+          {% endif %}
+        </td>
+        <td>{{ s["n_ingepland"] }}</td>
+        <td class="text-nowrap">
+          <button form="{{ f }}" class="btn btn-sm btn-outline-success" type="submit">Opslaan</button>
+          <button form="{{ f }}" class="btn btn-sm btn-outline-danger" type="submit"
+                  formaction="{{ url_for('admin_slot_verwijder', slot_id=s['id']) }}"
+                  onclick="return confirm('Dit slot verwijderen? De {{ s['n_ingepland'] }} toewijzingen in dit slot verdwijnen ook.')">Verwijderen</button>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+  <p class="text-muted">Deze dag heeft nog geen slots. Voeg ze hieronder toe: pas dan verschijnt de dag
+     in het aanwezigheidsformulier.</p>
+{% endif %}
+
+<h2 class="h5">Slots toevoegen</h2>
+<form method="post" class="mb-4">
+  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+  <input type="hidden" name="actie" value="slots_toevoegen">
+  <label class="form-label" for="regels">Eén slot per regel: <code>tijd titel</code>,
+    eventueel met <code>| aantal rolcode</code> voor hoeveel mensen er nodig zijn,
+    bijvoorbeeld <code>| 6 L, 2 OK</code>.</label>
+  <textarea class="form-control font-monospace" id="regels" name="regels" rows="6"
+            placeholder="19:00 Tent opbouwen | 4 OB&#10;20:30 Podium bouwen | 3 OB&#10;21:30 Opruimen">{{ regels_tekst }}</textarea>
+  <div class="form-text mb-2">Een tijd na middernacht (voor 06:00) hoort bij deze dag en komt achteraan.</div>
+  <button class="btn btn-success" type="submit">Toevoegen</button>
+</form>
+
+<form method="post" action="{{ url_for('admin_dag_verwijder', dag_id=dag['id']) }}"
+      onsubmit="return confirm('Deze dag verwijderen?')">
+  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+  <button class="btn btn-outline-danger" type="submit" {% if slots %}disabled title="Verwijder eerst alle slots"{% endif %}>Dag verwijderen</button>
+</form>
+{% endblock %}

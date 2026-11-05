@@ -23,6 +23,41 @@
   <div class="alert alert-success">Geen tekorten gevonden.</div>
 {% endif %}
 
+<h2 class="h5">Wie krijgt wat? <small class="text-muted">en waarom niet</small></h2>
+<div class="table-responsive mb-4">
+  <table class="table table-sm align-middle">
+    <thead>
+      <tr>
+        <th>Persoon</th><th>Speltak</th><th>Activiteiten</th>
+        <th title="Aantal dagdelen met ja / misschien / nee / niet ingevuld">Aanwezigheid</th>
+        <th>Nu in planning</th><th>Voorgesteld</th><th>Opmerking</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in overzicht %}
+      <tr {% if r["reden"] %}class="table-warning"{% endif %}>
+        <td>{{ r["naam"] }}</td>
+        <td>{{ r["speltak"] or "—" }}</td>
+        <td>{{ r["n_org"] or "—" }}</td>
+        <td class="text-nowrap">
+          <span class="text-success">{{ r["ja"] }}</span> /
+          <span class="text-warning">{{ r["misschien"] }}</span> /
+          <span class="text-danger">{{ r["nee"] }}</span> /
+          <span class="text-muted">{{ r["leeg"] }}</span>
+          <small class="text-muted">van {{ r["totaal"] }}</small>
+        </td>
+        <td>{{ r["handmatig"] }}</td>
+        <td><strong>{{ r["voorgesteld"] }}</strong></td>
+        <td><small>{{ r["reden"] }}</small></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p class="form-text">Aanwezigheid: <span class="text-success">ja</span> / <span class="text-warning">misschien</span> /
+    <span class="text-danger">nee</span> / <span class="text-muted">niet ingevuld</span>.
+    "Nu in planning" zijn de taken die al in het schema staan (handmatig).</p>
+</div>
+
 <h2 class="h5">Voorgestelde toewijzingen ({{ toewijzingen|length }})</h2>
 {% if toewijzingen %}
 <div class="table-responsive">

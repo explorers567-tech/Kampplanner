@@ -109,8 +109,13 @@ def overzicht():
 @app.route("/schema")
 @inloggen_vereist
 def schema():
-    slots, personen, cellen = db.haal_schema()
-    return render_template("schema.html", slots=slots, personen=personen, cellen=cellen)
+    soort = request.args.get("soort")
+    if soort not in db.SOORTEN:
+        soort = None
+    slots, personen, cellen = db.haal_schema(soort)
+    return render_template("schema.html", slots=slots, personen=personen, cellen=cellen,
+                           soort=soort, soorten=db.haal_soorten_met_slots(),
+                           soortnamen=db.SOORTEN)
 
 
 @app.route("/mijn")
@@ -346,7 +351,6 @@ def admin_activiteiten():
         return redirect(url_for("admin_activiteiten"))
     return render_template("organisaties.html", organisaties=db.haal_organisaties())
 
-
 @app.route("/admin/activiteiten/<int:org_id>", methods=["GET", "POST"])
 @admin_vereist
 def admin_activiteit(org_id):
@@ -371,11 +375,28 @@ def admin_activiteit(org_id):
             if code and code in opties:
                 slot_codes.append((s["id"], code))
 
+        behoeften, fouten = {}, []
+        for s in slots:
+            tekst = request.form.get(f"nodig_{s['id']}")
+            if tekst is None:               # veld stond niet in het formulier: niet aanraken
+                continue
+            lijst, fout = lees_behoefte(tekst, rolopties_zonder_afwezig())
+            if fout:
+                titel = re.split(r"\s{2,}", (s["titel"] or "").strip())[0]
+                fouten.append(f"{s['dag']} {s['start']} {titel}: {fout}")
+            else:
+                behoeften[s["id"]] = lijst
+        if fouten:
+            for f in fouten:
+                flash(f, "danger")
+            flash("Er is niets opgeslagen. Verbeter de regels hierboven en probeer opnieuw.", "warning")
+            return redirect(url_for("admin_activiteit", org_id=org_id))
+
         geldige_personen = db.haal_persoon_ids()
         person_ids = [int(x) for x in request.form.getlist("persoon")
                       if x.isdigit() and int(x) in geldige_personen]
         try:
-            db.sla_organisatie_op(org_id, naam, slot_codes, person_ids)
+            db.sla_organisatie_op(org_id, naam, slot_codes, person_ids, behoeften)
             flash("Activiteit opgeslagen.", "success")
         except ValueError as fout:
             flash(str(fout), "danger")
@@ -383,7 +404,6 @@ def admin_activiteit(org_id):
 
     return render_template("organisatie.html", org=org, slots=slots,
                            personen=personen, opties=opties)
-
 
 @app.route("/admin/activiteiten/<int:org_id>/verwijder", methods=["POST"])
 @admin_vereist
@@ -554,6 +574,245 @@ def admin_import():
         abort(400)
 
     return render_template("import.html")
+
+# ---------- beheer: dagen en slots ----------
+
+@app.route("/admin/dagen", methods=["GET", "POST"])
+@admin_vereist
+def admin_dagen():
+    if request.method == "POST":
+        naam = request.form.get("naam", "").strip()
+        soort = request.form.get("soort", "")
+        voor = request.form.get("voor", "")
+        if not naam or len(naam) > 60:
+            flash("Geef de dag een naam van maximaal 60 tekens.", "danger")
+        elif soort not in db.SOORTEN:
+            flash("Kies een soort dag.", "danger")
+        else:
+            try:
+                dag_id = db.maak_dag(naam, soort, bool(request.form.get("heeft_nacht")),
+                                     int(voor) if voor.isdigit() else None)
+                flash(f"{naam} is toegevoegd. Voeg nu de slots toe.", "success")
+                return redirect(url_for("admin_dag", dag_id=dag_id))
+            except ValueError as fout:
+                flash(str(fout), "danger")
+        return redirect(url_for("admin_dagen"))
+    return render_template("dagen.html", dagen=db.haal_dagen(), soorten=db.SOORTEN)
+
+
+def lees_behoefte(tekst, opties):
+    """Leest wat er nodig is, zoals '6 L, 2 OK' (of '6xL'). Geeft (lijst van (aantal, code), fout)."""
+    codes = {c.upper(): c for c in opties}
+    uit, gezien = [], set()
+    for deel in re.split(r"[,;]", tekst):
+        deel = deel.strip()
+        if not deel:
+            continue
+        delen = deel.split()
+        m = re.fullmatch(r"(\d{1,3})[x×](\S+)", deel)
+        if len(delen) == 2 and delen[0].isdigit():
+            aantal, codetekst = int(delen[0]), delen[1]
+        elif m:
+            aantal, codetekst = int(m.group(1)), m.group(2)
+        else:
+            return None, f"'{deel}' begrijp ik niet. Gebruik bijvoorbeeld '6 L'."
+        code = codes.get(codetekst.upper())
+        if code is None:
+            return None, f"rolcode '{codetekst}' bestaat niet. Voeg die eerst toe onder Rollen."
+        if aantal < 1:
+            return None, f"'{deel}': het aantal moet minstens 1 zijn."
+        if code in gezien:
+            return None, f"rolcode {code} staat twee keer."
+        gezien.add(code)
+        uit.append((aantal, code))
+    return uit, None
+
+
+def lees_slotregels(tekst, opties):
+    """Leest regels als '19:00 Tent opbouwen | 4 OB, 2 K'. Geeft (slots, fouten)."""
+    slots, fouten = [], []
+    for nr, ruw in enumerate(tekst.splitlines(), start=1):
+        lijn = ruw.strip()
+        if not lijn:
+            continue
+        behoeften = []
+        if "|" in lijn:
+            lijn, _, rest = lijn.rpartition("|")
+            behoeften, fout = lees_behoefte(rest, opties)
+            if fout:
+                fouten.append(f"Regel {nr}: {fout}")
+                continue
+        m = re.fullmatch(r"(\d{1,2}):(\d{2})\s+(.+)", lijn.strip())
+        if not m or int(m.group(1)) > 23 or int(m.group(2)) > 59:
+            fouten.append(f"Regel {nr}: begin met een tijd zoals 19:00, gevolgd door de titel.")
+            continue
+        slots.append((f"{int(m.group(1)):02d}:{m.group(2)}", m.group(3).strip()[:120], behoeften))
+    if not slots and not fouten:
+        fouten.append("Er staat niets in het veld.")
+    return slots, fouten
+
+
+@app.route("/admin/dagen/<int:dag_id>", methods=["GET", "POST"])
+@admin_vereist
+def admin_dag(dag_id):
+    dag, slots = db.haal_dag(dag_id)
+    if dag is None:
+        abort(404)
+    opties = rolopties_zonder_afwezig()
+    regels_tekst = ""
+
+    if request.method == "POST":
+        actie = request.form.get("actie")
+        if actie == "dag_opslaan":
+            naam = request.form.get("naam", "").strip()
+            soort = request.form.get("soort", "")
+            if not naam or len(naam) > 60 or soort not in db.SOORTEN:
+                flash("Geef een naam (maximaal 60 tekens) en kies een soort.", "danger")
+            else:
+                try:
+                    db.wijzig_dag(dag_id, naam, soort, bool(request.form.get("heeft_nacht")))
+                    flash("Dag opgeslagen.", "success")
+                except ValueError as fout:
+                    flash(str(fout), "danger")
+            return redirect(url_for("admin_dag", dag_id=dag_id))
+
+        if actie == "slots_toevoegen":
+            regels_tekst = request.form.get("regels", "")
+            nieuwe, fouten = lees_slotregels(regels_tekst, opties)
+            if fouten:
+                for f in fouten:
+                    flash(f, "danger")
+                flash("Er is niets toegevoegd. Verbeter de regels en probeer opnieuw.", "warning")
+            else:
+                db.voeg_slots_toe(dag["naam"], nieuwe)
+                flash(f"{len(nieuwe)} slot(s) toegevoegd.", "success")
+                return redirect(url_for("admin_dag", dag_id=dag_id))
+        else:
+            abort(400)
+
+    return render_template("dag.html", dag=dag, slots=slots, opties=opties,
+                           soorten=db.SOORTEN, regels_tekst=regels_tekst)
+
+
+@app.route("/admin/dagen/<int:dag_id>/verplaats", methods=["POST"])
+@admin_vereist
+def admin_dag_verplaats(dag_id):
+    richting = request.form.get("richting")
+    if richting in ("omhoog", "omlaag"):
+        db.verplaats_dag(dag_id, richting)
+    return redirect(url_for("admin_dagen"))
+
+
+@app.route("/admin/dagen/<int:dag_id>/verwijder", methods=["POST"])
+@admin_vereist
+def admin_dag_verwijder(dag_id):
+    try:
+        db.verwijder_dag(dag_id)
+        flash("Dag verwijderd.", "success")
+        return redirect(url_for("admin_dagen"))
+    except ValueError as fout:
+        flash(str(fout), "danger")
+        return redirect(url_for("admin_dag", dag_id=dag_id))
+
+
+@app.route("/admin/slots/<int:slot_id>/wijzig", methods=["POST"])
+@admin_vereist
+def admin_slot_wijzig(slot_id):
+    slot = db.haal_slot(slot_id)
+    if slot is None:
+        abort(404)
+    terug = url_for("admin_dag", dag_id=slot["dag_id"]) if slot["dag_id"] else url_for("admin_dagen")
+
+    m = re.fullmatch(r"(\d{1,2}):(\d{2})", request.form.get("start", "").strip())
+    titel = request.form.get("titel", "").strip()[:120]
+    if not m or int(m.group(1)) > 23 or int(m.group(2)) > 59 or not titel:
+        flash("Vul een geldige tijd (zoals 19:00) en een titel in.", "danger")
+        return redirect(terug)
+    start = f"{int(m.group(1)):02d}:{m.group(2)}"
+
+    behoefte = None
+    aantal = request.form.get("b_aantal", "").strip()
+    code = request.form.get("b_code", "")
+    if aantal.isdigit() and int(aantal) > 0 and code:
+        if code not in rolopties_zonder_afwezig():
+            flash("Onbekende rolcode.", "danger")
+            return redirect(terug)
+        behoefte = (min(int(aantal), 999), code)
+
+    db.wijzig_slot(slot_id, start, titel, behoefte)
+    flash("Slot opgeslagen.", "success")
+    return redirect(terug)
+
+
+@app.route("/admin/slots/<int:slot_id>/verwijder", methods=["POST"])
+@admin_vereist
+def admin_slot_verwijder(slot_id):
+    slot = db.haal_slot(slot_id)
+    if slot is None:
+        abort(404)
+    terug = url_for("admin_dag", dag_id=slot["dag_id"]) if slot["dag_id"] else url_for("admin_dagen")
+    db.verwijder_slot(slot_id)
+    flash("Slot verwijderd, met de bijbehorende toewijzingen.", "success")
+    return redirect(terug)
+
+
+# ---------- beheer: rollen (rolcodes) ----------
+
+@app.route("/admin/rollen", methods=["GET", "POST"])
+@admin_vereist
+def admin_rollen():
+    if request.method == "POST":
+        code = request.form.get("code", "").strip().upper()
+        omschrijving = request.form.get("omschrijving", "").strip()[:80]
+        if not re.fullmatch(r"[A-Z0-9*]{1,6}", code):
+            flash("Een rolcode bestaat uit 1 tot 6 letters, cijfers of een *.", "danger")
+        elif not omschrijving:
+            flash("Vul een omschrijving in.", "danger")
+        else:
+            try:
+                db.maak_rol(code, omschrijving)
+                flash(f"Rol {code} is toegevoegd.", "success")
+            except ValueError as fout:
+                flash(str(fout), "danger")
+        return redirect(url_for("admin_rollen"))
+    return render_template("rollen.html", rollen=db.haal_rollen_beheer(), iconen=icons.ICONEN)
+
+
+@app.route("/admin/rollen/<int:rol_id>/wijzig", methods=["POST"])
+@admin_vereist
+def admin_rol_wijzig(rol_id):
+    omschrijving = request.form.get("omschrijving", "").strip()[:80]
+    if not omschrijving:
+        flash("De omschrijving mag niet leeg zijn.", "danger")
+    else:
+        db.wijzig_rol(rol_id, omschrijving)
+        flash("Rol bijgewerkt.", "success")
+    return redirect(url_for("admin_rollen"))
+
+
+@app.route("/admin/rollen/<int:rol_id>/verwijder", methods=["POST"])
+@admin_vereist
+def admin_rol_verwijder(rol_id):
+    try:
+        db.verwijder_rol(rol_id)
+        flash("Rol verwijderd.", "success")
+    except ValueError as fout:
+        flash(str(fout), "danger")
+    return redirect(url_for("admin_rollen"))
+
+@app.route("/admin/opruimen", methods=["GET", "POST"])
+@admin_vereist
+def admin_opruimen():
+    if request.method == "POST":
+        if request.form.get("bevestig") != "ja":
+            flash("Vink eerst aan dat je dit zeker weet.", "danger")
+            return redirect(url_for("admin_opruimen"))
+        pad = db.maak_back_up()
+        n = db.wis_handmatige_planning(bool(request.form.get("aantallen")))
+        flash(f"{n} handmatige toewijzingen verwijderd. Een back-up staat in {os.path.relpath(pad, app.root_path)}.",
+              "success")
+        return redirect(url_for("admin_auto"))
+    return render_template("opruimen.html", tel=db.tel_planning())
 
 if __name__ == "__main__":
     app.run(debug=True)

@@ -6,8 +6,8 @@
      <a href="{{ url_for('admin') }}">← terug naar beheer</a></p>
 {% else %}
   <p class="text-muted">Geef per dagdeel aan of je er bent.
-     Ochtend: tot 12:00, middag: 12:00–18:00, avond: vanaf 18:00,
-     nacht: na middernacht.</p>
+     Ochtend: 07:30–12:00, middag: 12:00–18:00, avond: 18:00–00:30,
+     nacht: 00:30–07:30.</p>
 {% endif %}
 
 <form method="post" enctype="multipart/form-data">
@@ -18,8 +18,12 @@
         <tr><th>Dagdeel</th><th>Ben je er?</th></tr>
       </thead>
       <tbody>
-        {% set ns = namespace(dag=None) %}
+        {% set ns = namespace(dag=None, soort=None) %}
         {% for d in dagdelen %}
+          {% if d["soort"] != ns.soort %}
+            {% set ns.soort = d["soort"] %}
+            <tr class="table-dark"><td colspan="2"><strong>{{ d["soortnaam"] }}</strong></td></tr>
+          {% endif %}
           {% if d["dag"] != ns.dag %}
             {% set ns.dag = d["dag"] %}
             <tr class="table-success"><td colspan="2"><strong>{{ d["dag"] }}</strong></td></tr>

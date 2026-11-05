@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block inhoud %}
+<h1 class="h3">Rollen</h1>
+<p class="text-muted">De rolcodes uit het schema. Een pictogram kies je in <code>icons.py</code>.
+   <a href="{{ url_for('admin') }}">← terug naar beheer</a></p>
+
+<form method="post" class="row g-2 align-items-end mb-4">
+  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+  <div class="col-auto" style="width: 8rem">
+    <label class="form-label" for="code">Code</label>
+    <input class="form-control" id="code" name="code" maxlength="6" required placeholder="OB">
+  </div>
+  <div class="col-md-5">
+    <label class="form-label" for="omschrijving">Omschrijving</label>
+    <input class="form-control" id="omschrijving" name="omschrijving" maxlength="80" required placeholder="Opbouwen">
+  </div>
+  <div class="col-auto"><button class="btn btn-success" type="submit">Toevoegen</button></div>
+</form>
+
+<div class="table-responsive">
+  <table class="table table-sm align-middle">
+    <thead><tr><th>Code</th><th></th><th>Omschrijving</th><th>In planning</th><th>In regels</th><th></th></tr></thead>
+    <tbody>
+      {% for r in rollen %}
+      {% set f = "rol" ~ r["id"] %}
+      <tr>
+        <td>
+          <form id="{{ f }}" method="post" action="{{ url_for('admin_rol_wijzig', rol_id=r['id']) }}">
+            <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+          </form>
+          <strong>{{ r["code"] }}</strong>
+        </td>
+        <td>{{ iconen.get(r["code"], "") }}</td>
+        <td><input form="{{ f }}" class="form-control form-control-sm" name="omschrijving"
+                   value="{{ r['omschrijving'] }}" maxlength="80" required></td>
+        <td>{{ r["n_toewijzingen"] }}</td>
+        <td>{{ r["n_regels"] }}</td>
+        <td class="text-nowrap">
+          <button form="{{ f }}" class="btn btn-sm btn-outline-success" type="submit">Opslaan</button>
+          <button form="{{ f }}" class="btn btn-sm btn-outline-danger" type="submit"
+                  formaction="{{ url_for('admin_rol_verwijder', rol_id=r['id']) }}"
+                  onclick="return confirm('Rol {{ r['code'] }} verwijderen?')"
+                  {% if r["n_toewijzingen"] or r["n_regels"] %}disabled title="Wordt nog gebruikt"{% endif %}>Verwijderen</button>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

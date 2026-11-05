@@ -10,9 +10,9 @@ ICONEN = {
     "#":  "🏠",      # afwezig
     "?":  "❓",      # onbekend
     # spel
-    "L":  "🔥",      # aanwezig bij spel als leiding (kampvuur)
+    "L":  "L",      # aanwezig bij spel als leiding (kampvuur)
     "V":  "🗺️",      # voorbereiding spel (kaart)
-    "VL": "🗺️🔥",    # voorbereiding + aanwezig
+    "VL": "🗺️L",    # voorbereiding + aanwezig
     "O":  "🚩",      # organisatie spel (vlag)
     "OA": "🚩🙋",    # organisatie + aanspreekpunt
     # slapen en opstaan
@@ -22,6 +22,7 @@ ICONEN = {
     "W":  "📯",      # alle blokhutten wekken (hoorn)
     # eten en drinken
     "BS": "🥪",      # brood smeren
+    "OB": "🔨",      # opbouwen
     "A":  "🧽",      # afwas
     "BD": "🍽️",      # bedienen diner
     "BB": "🍹",      # bedienen borrel

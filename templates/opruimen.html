@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block inhoud %}
+<h1 class="h3">Oude planning opruimen</h1>
+<p class="text-muted"><a href="{{ url_for('admin_planning') }}">← terug naar de planning</a></p>
+
+<div class="alert alert-info">
+  De app leest het Excel-bestand zelf nooit. Maar toen de database werd gevuld, is de planning uit de Excel
+  meegekomen, en die telt nu als <strong>handmatige planning</strong>: de automatische indeling laat
+  die staan, houdt er rekening mee en deelt de mensen daarin niet nog eens in. Daardoor krijgen mensen die er
+  al in stonden veel, en nieuwe leiding weinig.
+</div>
+
+<table class="table table-sm w-auto">
+  <tr><th>Handmatige toewijzingen (o.a. uit de Excel)</th><td>{{ tel["handmatig"] }} <small class="text-muted">bij {{ tel["personen"] }} personen</small></td></tr>
+  <tr><th>Automatisch ingedeeld</th><td>{{ tel["auto"] }}</td></tr>
+  <tr><th>Slots met een getal in de kolom "aantal" uit de Excel</th><td>{{ tel["excel_aantallen"] }}</td></tr>
+</table>
+
+<h2 class="h5 mt-4">Wat wordt weggehaald?</h2>
+<ul>
+  <li>Alle handmatige toewijzingen. Ook de afwezig-tekens (<code>#</code>) en de vraagtekens (<code>?</code>) uit de Excel.</li>
+  <li><strong>Niet</strong>: de personen, de dagen en slots, de rollen, de activiteiten, de aanwezigheid die iemand heeft
+      ingevuld, en wat er nodig is. Die blijven staan.</li>
+  <li>De automatische indeling blijft ook staan. Je maakt die daarna opnieuw onder
+      <a href="{{ url_for('admin_auto') }}">Automatisch indelen</a>.</li>
+</ul>
+<p>Voordat er iets wordt verwijderd, maakt de app zelf een back-up van de hele database.</p>
+
+<form method="post" onsubmit="return confirm('De handmatige planning verwijderen? Er wordt eerst een back-up gemaakt.')">
+  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+  <div class="form-check mb-2">
+    <input class="form-check-input" type="checkbox" name="aantallen" value="1" id="aantallen">
+    <label class="form-check-label" for="aantallen">Ook de getallen uit de kolom "aantal" van de Excel wissen</label>
+  </div>
+  <div class="form-check mb-3">
+    <input class="form-check-input" type="checkbox" name="bevestig" value="ja" id="bevestig">
+    <label class="form-check-label" for="bevestig">Ik weet zeker dat ik de handmatige planning wil verwijderen</label>
+  </div>
+  <button class="btn btn-danger" type="submit" {% if not tel["handmatig"] and not tel["excel_aantallen"] %}disabled{% endif %}>
+    Handmatige planning verwijderen
+  </button>
+</form>
+{% endblock %}

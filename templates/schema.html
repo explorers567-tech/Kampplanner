@@ -6,7 +6,20 @@
   .schema th, .schema td { white-space: nowrap; text-align: center; font-size: .85rem; }
   .schema td.tijd, .schema td.titel { text-align: left; }
   .schema .dag td { background: #1f6f3d; color: #fff; font-weight: bold; text-align: left; }
+  .nav-pills .nav-link.active { background: var(--scout-groen); }
+  .nav-pills .nav-link { color: var(--scout-groen); }
 </style>
+
+{% if soorten|length > 1 %}
+<ul class="nav nav-pills mb-3">
+  <li class="nav-item"><a class="nav-link {% if not soort %}active{% endif %}" href="/schema">Alles</a></li>
+  {% for s in soorten %}
+    <li class="nav-item">
+      <a class="nav-link {% if soort == s %}active{% endif %}" href="/schema?soort={{ s }}">{{ soortnamen[s] }}</a>
+    </li>
+  {% endfor %}
+</ul>
+{% endif %}
 
 <div class="table-responsive">
   <table class="table table-sm table-bordered schema">

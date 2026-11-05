@@ -2,6 +2,9 @@
 {% block inhoud %}
 <h1 class="h3">Beheer</h1>
 <div class="d-flex flex-wrap gap-2 mb-3">
+  <a class="btn btn-outline-danger" href="{{ url_for('admin_opruimen') }}">Oude planning opruimen</a>
+  <a class="btn btn-outline-success" href="{{ url_for('admin_dagen') }}">Dagen en slots</a>
+  <a class="btn btn-outline-success" href="{{ url_for('admin_rollen') }}">Rollen</a>
   <a class="btn btn-outline-success" href="{{ url_for('admin_import') }}">Aanwezigheid importeren</a>
   <a class="btn btn-success" href="{{ url_for('admin_planning') }}">Planning bewerken</a>
   <a class="btn btn-success" href="{{ url_for('admin_auto') }}">Automatisch indelen</a>
@@ -25,7 +28,7 @@
     <thead>
       <tr>
         <th>Persoon</th><th>Speltak</th><th>Organiseert</th>
-        <th>Dagdelen ingevuld</th><th>Bestanden</th>
+        <th>Aanwezigheid ingevuld</th><th>Bestanden</th>
         <th>Persoonlijke link</th><th>Acties</th>
       </tr>
     </thead>
@@ -46,7 +49,13 @@
         </td>
         <td>{{ p["speltak"] or "—" }}</td>
         <td>{{ p["n_org"] }}</td>
-        <td>{{ p["n_beschikbaar"] }}</td>
+                <td>
+          {% if p["n_beschikbaar"] == 0 %}
+            <span class="badge text-bg-danger">nog niets ingevuld</span>
+          {% else %}
+            {{ p["n_beschikbaar"] }} / {{ n_dagdelen }}
+          {% endif %}
+        </td>
         <td>{{ p["n_uploads"] }}</td>
         <td>
           <input class="form-control form-control-sm" readonly onclick="this.select()"

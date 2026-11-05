@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block inhoud %}
+<h1 class="h3">Dagen</h1>
+<p class="text-muted">Het voorbereidend weekend, de opbouwavonden en de kampdagen.
+   De volgorde hier is de volgorde in het schema en bij de aanwezigheid.
+   <a href="{{ url_for('admin') }}">← terug naar beheer</a></p>
+
+<div class="table-responsive mb-4">
+  <table class="table table-sm align-middle">
+    <thead>
+      <tr><th></th><th>Dag</th><th>Soort</th><th>Overnachting</th><th>Slots</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for d in dagen %}
+      <tr>
+        <td class="text-nowrap">
+          <form method="post" class="d-inline" action="{{ url_for('admin_dag_verplaats', dag_id=d['id']) }}">
+            <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+            <input type="hidden" name="richting" value="omhoog">
+            <button class="btn btn-sm btn-outline-secondary" type="submit" title="Eerder" {% if loop.first %}disabled{% endif %}>↑</button>
+          </form>
+          <form method="post" class="d-inline" action="{{ url_for('admin_dag_verplaats', dag_id=d['id']) }}">
+            <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+            <input type="hidden" name="richting" value="omlaag">
+            <button class="btn btn-sm btn-outline-secondary" type="submit" title="Later" {% if loop.last %}disabled{% endif %}>↓</button>
+          </form>
+        </td>
+        <td><strong>{{ d["naam"] }}</strong></td>
+        <td>{{ soorten[d["soort"]] }}</td>
+        <td>{{ "ja" if d["heeft_nacht"] else "nee" }}</td>
+        <td>{{ d["n_slots"] }}</td>
+        <td><a class="btn btn-sm btn-outline-success" href="{{ url_for('admin_dag', dag_id=d['id']) }}">Slots en instellingen</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<h2 class="h5">Dag toevoegen</h2>
+<form method="post" class="row g-2 align-items-end">
+  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+  <div class="col-md-4">
+    <label class="form-label" for="naam">Naam</label>
+    <input class="form-control" id="naam" name="naam" maxlength="60" required
+           placeholder="bijv. Opbouwavond 1 (wo 2 dec)">
+  </div>
+  <div class="col-md-3">
+    <label class="form-label" for="soort">Soort</label>
+    <select class="form-select" id="soort" name="soort">
+      {% for sleutel, naam in soorten.items() %}
+        <option value="{{ sleutel }}" {% if sleutel == "opbouw" %}selected{% endif %}>{{ naam }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-md-3">
+    <label class="form-label" for="voor">Plaats vóór</label>
+    <select class="form-select" id="voor" name="voor">
+      <option value="">— achteraan —</option>
+      {% for d in dagen %}<option value="{{ d['id'] }}">{{ d["naam"] }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="col-md-2">
+    <div class="form-check mb-2">
+      <input class="form-check-input" type="checkbox" name="heeft_nacht" value="1" id="nacht">
+      <label class="form-check-label" for="nacht">Overnachting</label>
+    </div>
+    <button class="btn btn-success" type="submit">Toevoegen</button>
+  </div>
+</form>
+<p class="form-text mt-2">Zet de datum in de naam, zodat de leiding weet welke avond het is. Met "overnachting"
+   vragen we ook of iemand die nacht blijft.</p>
+{% endblock %}
