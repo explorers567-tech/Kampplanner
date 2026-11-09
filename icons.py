@@ -9,6 +9,7 @@ ICONEN = {
     # aanwezigheid
     "#":  "🏠",      # afwezig
     "?":  "❓",      # onbekend
+    
     # spel
     "L":  "L",      # aanwezig bij spel als leiding (kampvuur)
     "V":  "🗺️",      # voorbereiding spel (kaart)
@@ -33,8 +34,20 @@ ICONEN = {
     "TB": "🚽🦫",    # toiletten beverblokhut (bever)
     "TS": "🚽⛺",    # toilet stamkant (tent)
     "TV": "🚽🥾",    # toilet verkennerkant (wandelschoen)
-    "S":  "🧹",      # stamblokhut opruimen
+    "S":  "🧹",      # stamblokhut opruimen (bezem)
     # disco
     "OD": "🕺",      # omkleden disco + aanwezig
     "OO": "🕺🧹",    # omkleden disco + opruimen
+    # Leidingrol
+    "LBL": "🦫",     # Beverleiding
+    "LKL": "🧚",     # Kabouterleiding
+    "LWL": "🐺",     # Welpenleiding
+    "LGL": "🧭",     # Gidsenleiding
+    "LVL": "🥾",     # Verkennerleiding
+    "LEL": "🛰️",     # Explorerbegeleiding
+    "LST": "🔥",     # Stam
+    "LPL": "⭐",     # PlusScouts
+    "LKK": "🎄",     # Kerstkampcommissie
+    "LBES": "📋"    # Bestuur
+
 }

@@ -26,7 +26,8 @@ cur.execute("""
     CREATE TABLE IF NOT EXISTS persons (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         naam TEXT NOT NULL UNIQUE,
-        is_ouderraad INTEGER NOT NULL DEFAULT 0
+        is_ouderraad INTEGER NOT NULL DEFAULT 0,
+        leidingrol TEXT
     )
 """)
 
