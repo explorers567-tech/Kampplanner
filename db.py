@@ -35,6 +35,9 @@ def dagdeel_van(start):
 def verbind():
     print(f"Database pad: {DB_PAD}")
     print(f"Bestaat bestand: {os.path.exists(DB_PAD)}")
+    print("DB_PAD =", DB_PAD)
+    print("Bestaat DB =", os.path.exists(DB_PAD))
+    print("Bestaat map =", os.path.exists(os.path.dirname(DB_PAD)))
 
     con = sqlite3.connect(DB_PAD)
     con.row_factory = sqlite3.Row
