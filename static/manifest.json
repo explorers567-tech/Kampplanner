@@ -1,0 +1,20 @@
+{
+  "name": "Kampplanner",
+  "short_name": "Kampplanner",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1f6f3d",
+  "icons": [
+    {
+      "src": "/static/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/static/icon-192.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
