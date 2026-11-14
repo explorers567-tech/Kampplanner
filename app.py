@@ -132,6 +132,7 @@ def persoonlijk():
 
 def verwerk_invoer(person_id, terug_url, admin_modus):
     persoon, dagdelen, uploads = db.haal_beschikbaarheid(person_id)
+    geselecteerde_rollen = db.haal_persoon_rollen(person_id)
     if persoon is None:
         abort(404)
 
@@ -159,11 +160,26 @@ def verwerk_invoer(person_id, terug_url, admin_modus):
             originele_naam = secure_filename(bestand.filename) or "document"
             db.sla_upload_op(person_id, originele_naam, opslag_naam)
 
+        rollen = request.form.getlist("leidingrollen")
+
+        if len(rollen) > 3:
+            flash("Je mag maximaal 3 leidingrollen kiezen.", "danger")
+            return redirect(terug_url)
+
+        db.sla_persoon_rollen_op(person_id, rollen)
+
         flash("Opgeslagen!", "success")
         return redirect(terug_url)
 
-    return render_template("invoer.html", persoon=persoon, dagdelen=dagdelen,
-                           uploads=uploads, admin_modus=admin_modus)
+    return render_template(
+    "invoer.html",
+    persoon=persoon,
+    dagdelen=dagdelen,
+    uploads=uploads,
+    admin_modus=admin_modus,
+    leidingrollen=LEIDINGROLLEN,
+    geselecteerde_rollen=geselecteerde_rollen
+)
 
 @app.route("/invoer", methods=["GET", "POST"])
 def invoer():

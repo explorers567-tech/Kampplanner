@@ -31,12 +31,45 @@
           <tr>
             <td>{{ d["naam"] }}</td>
             <td>
-              <select class="form-select form-select-sm" name="{{ d['veld'] }}">
-                <option value="">—</option>
-                <option value="ja"        {% if d["status"] == "ja" %}selected{% endif %}>Ja</option>
-                <option value="nee"       {% if d["status"] == "nee" %}selected{% endif %}>Nee</option>
-                <option value="misschien" {% if d["status"] == "misschien" %}selected{% endif %}>Misschien</option>
-              </select>
+<div class="btn-group w-100" role="group">
+
+  <input type="radio"
+         class="btn-check"
+         name="{{ d['veld'] }}"
+         id="{{ d['veld'] }}_ja"
+         value="ja"
+         {% if d["status"] == "ja" %}checked{% endif %}>
+
+  <label class="btn btn-success"
+         for="{{ d['veld'] }}_ja">
+      ✅ Ja
+  </label>
+
+  <input type="radio"
+         class="btn-check"
+         name="{{ d['veld'] }}"
+         id="{{ d['veld'] }}_misschien"
+         value="misschien"
+         {% if d["status"] == "misschien" %}checked{% endif %}>
+
+  <label class="btn btn-warning"
+         for="{{ d['veld'] }}_misschien">
+      ❓ Misschien
+  </label>
+
+  <input type="radio"
+         class="btn-check"
+         name="{{ d['veld'] }}"
+         id="{{ d['veld'] }}_nee"
+         value="nee"
+         {% if d["status"] == "nee" %}checked{% endif %}>
+
+  <label class="btn btn-danger"
+         for="{{ d['veld'] }}_nee">
+      ❌ Nee
+  </label>
+
+</div>
             </td>
           </tr>
         {% endfor %}

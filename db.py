@@ -211,6 +211,37 @@ def sla_beschikbaarheid_op(person_id, invoer):
     finally:
         con.close()
 
+def haal_persoon_rollen(person_id):
+    con = verbind()
+
+    rows = con.execute("""
+        SELECT role_code
+        FROM person_roles
+        WHERE person_id = ?
+        ORDER BY role_code
+    """, (person_id,)).fetchall()
+
+    con.close()
+
+    return [r["role_code"] for r in rows]
+
+def sla_persoon_rollen_op(person_id, rollen):
+    con = verbind()
+
+    con.execute(
+        "DELETE FROM person_roles WHERE person_id = ?",
+        (person_id,)
+    )
+
+    for rol in rollen:
+        con.execute("""
+            INSERT INTO person_roles
+            (person_id, role_code)
+            VALUES (?, ?)
+        """, (person_id, rol))
+
+    con.commit()
+    con.close()
 
 # ---------- uploads ----------
 
