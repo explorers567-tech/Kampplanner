@@ -36,6 +36,18 @@ UPLOAD_MAP = os.path.join(app.root_path, "uploads")
 TOEGESTAAN = {"pdf", "png", "jpg", "jpeg", "docx"}
 STATUSSEN = {"", "ja", "nee", "misschien"}
 
+LEIDINGROLLEN = [
+    ("BL", "Beverleiding"),
+    ("KL", "Kabouterleiding"),
+    ("WL", "Welpenleiding"),
+    ("GL", "Gidsenleiding"),
+    ("VL", "Verkennerleiding"),
+    ("EL", "Explorerleiding"),
+    ("ST", "Stamlid"),
+    ("PS", "Plusscoutslid"),
+    ("BES", "Bestuurslid"),
+    ("VRIJ", "Vrijwilliger"),
+]
 
 # ---------- beveiliging ----------
 
@@ -176,9 +188,7 @@ def verwerk_invoer(person_id, terug_url, admin_modus):
     persoon=persoon,
     dagdelen=dagdelen,
     uploads=uploads,
-    admin_modus=admin_modus,
-    leidingrollen=LEIDINGROLLEN,
-    geselecteerde_rollen=geselecteerde_rollen
+    admin_modus=admin_modus
 )
 
 @app.route("/invoer", methods=["GET", "POST"])
