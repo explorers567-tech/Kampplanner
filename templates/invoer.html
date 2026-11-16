@@ -82,6 +82,38 @@
     <input class="form-control" type="file" name="document" id="document">
   </div>
 
+<hr>
+
+<h3>Mijn leidingrollen</h3>
+<p class="text-muted">
+    Kies maximaal 3 rollen.
+</p>
+
+<div class="row">
+{% for code, naam in leidingrollen %}
+  <div class="col-md-4 mb-2">
+
+    <input
+      type="checkbox"
+      class="btn-check"
+      id="rol_{{ code }}"
+      name="leidingrollen"
+      value="{{ code }}"
+      {% if code in geselecteerde_rollen %}checked{% endif %}
+    >
+
+    <label
+      class="btn btn-outline-success w-100"
+      for="rol_{{ code }}"
+    >
+      {{ naam }}
+    </label>
+
+  </div>
+{% endfor %}
+</div>
+
+
   <button class="btn btn-success" type="submit">Opslaan</button>
 </form>
 
