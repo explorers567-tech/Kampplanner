@@ -18,7 +18,16 @@ from collections import Counter, defaultdict
 
 # Rolcodes die voor het tellen als hetzelfde gelden
 GELIJK = {"K": {"K", "K*"}, "K*": {"K", "K*"}}
+ROLGROEPEN = {
+    "TW": "TOILET",
+    "TB": "TOILET",
+    "TV": "TOILET",
+    "TS": "TOILET",
+}
 
+MAX_PER_GROEP = {
+    "TOILET": 2
+}
 
 def _groep(code):
     return "K" if code in ("K", "K*") else code
@@ -39,10 +48,16 @@ def maak_planning(d):
 
     teller = Counter()                   # (persoon, rolgroep) -> aantal, voor eerlijk verdelen
     totaal = Counter()                   # persoon -> aantal taken
+    groep_teller = Counter()
+
     for (sid, pid), code in bezet.items():
-        if code not in ("#", "?"):
-            teller[(pid, _groep(code))] += 1
-            totaal[pid] += 1
+    if code not in ("#", "?"):
+        teller[(pid, _groep(code))] += 1
+        totaal[pid] += 1
+
+        groep = ROLGROEPEN.get(code)
+        if groep:
+            groep_teller[(pid, groep)] += 1
 
     def melding(niveau, tekst):
         if tekst not in gezien:
@@ -55,11 +70,28 @@ def maak_planning(d):
     def is_vrij(sid, pid):
         return (sid, pid) not in bezet and (sid, pid) not in nieuw
 
+    def mag_nog(pid, code):
+        groep = ROLGROEPEN.get(code)
+
+    if not groep:
+        return True
+
+    limiet = MAX_PER_GROEP.get(groep)
+
+    if limiet is None:
+        return True
+
+    return groep_teller[(pid, groep)] < limiet
+
     def toewijzen(sid, pid, code, reden, onzeker=False):
         nieuw[(sid, pid)] = {"slot": slots[sid], "person_id": pid, "naam": naam[pid],
                              "code": code, "reden": reden, "onzeker": onzeker}
         teller[(pid, _groep(code))] += 1
         totaal[pid] += 1
+        groep = ROLGROEPEN.get(code)
+
+        if groep:
+            groep_teller[(pid, groep)] += 1
 
 def mag_nog(pid, code):
     limiet = MAX_PER_ROL.get(code)
@@ -183,7 +215,12 @@ def mag_nog(pid, code):
             continue
 
         sleutel = lambda p: (teller[(p, _groep(code))], totaal[p], _lot(sid, p), naam[p])
-        vrij = [p for p in naam if is_vrij(sid, p)]
+        vrij = [
+    p for p in naam
+    if is_vrij(sid, p)
+    and mag_nog(p, code)
+]
+
         ja = sorted([p for p in vrij if status_van(p, slot) == "ja"], key=sleutel)[:nodig]
         for p in ja:
             toewijzen(sid, p, code, f"nodig: {b['aantal']}x {code}")
