@@ -51,9 +51,9 @@ def maak_planning(d):
     groep_teller = Counter()
 
     for (sid, pid), code in bezet.items():
-    if code not in ("#", "?"):
-        teller[(pid, _groep(code))] += 1
-        totaal[pid] += 1
+        if code not in ("#", "?"):
+            teller[(pid, _groep(code))] += 1
+            totaal[pid] += 1
 
         groep = ROLGROEPEN.get(code)
         if groep:
