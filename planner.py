@@ -73,39 +73,33 @@ def maak_planning(d):
     def mag_nog(pid, code):
         groep = ROLGROEPEN.get(code)
 
-    if not groep:
-        return True
+        if not groep:
+            return True
 
-    limiet = MAX_PER_GROEP.get(groep)
+        limiet = MAX_PER_GROEP.get(groep)
 
-    if limiet is None:
-        return True
+        if limiet is None:
+            return True
 
-    return groep_teller[(pid, groep)] < limiet
+        return groep_teller[(pid, groep)] < limiet
 
     def toewijzen(sid, pid, code, reden, onzeker=False):
-        nieuw[(sid, pid)] = {"slot": slots[sid], "person_id": pid, "naam": naam[pid],
-                             "code": code, "reden": reden, "onzeker": onzeker}
+        nieuw[(sid, pid)] = {
+            "slot": slots[sid],
+            "person_id": pid,
+            "naam": naam[pid],
+            "code": code,
+            "reden": reden,
+            "onzeker": onzeker
+    }
+
         teller[(pid, _groep(code))] += 1
         totaal[pid] += 1
+
         groep = ROLGROEPEN.get(code)
 
         if groep:
             groep_teller[(pid, groep)] += 1
-
-def mag_nog(pid, code):
-    limiet = MAX_PER_ROL.get(code)
-
-    if limiet is None:
-        return True
-
-    huidig = (
-        teller[(pid, code)]
-        if (pid, code) in teller
-        else 0
-    )
-
-    return huidig < limiet
 
     def omschrijf(slot):
         # de locatie staat na 2+ spaties achter de titel: alleen de titel tonen
