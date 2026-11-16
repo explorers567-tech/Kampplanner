@@ -61,6 +61,20 @@ def maak_planning(d):
         teller[(pid, _groep(code))] += 1
         totaal[pid] += 1
 
+def mag_nog(pid, code):
+    limiet = MAX_PER_ROL.get(code)
+
+    if limiet is None:
+        return True
+
+    huidig = (
+        teller[(pid, code)]
+        if (pid, code) in teller
+        else 0
+    )
+
+    return huidig < limiet
+
     def omschrijf(slot):
         # de locatie staat na 2+ spaties achter de titel: alleen de titel tonen
         titel = re.split(r"\s{2,}", (slot["titel"] or "").strip())[0]
@@ -102,10 +116,13 @@ def maak_planning(d):
 
         def kandidaten(e):
             return [p for p in d["speltak_leden"].get(e["speltak_id"], [])
-                    if is_vrij(sid, p) and status_van(p, slot) in ("ja", "misschien")]
+        if is_vrij(sid, p)
+        and status_van(p, slot) in ("ja", "misschien")
+        and mag_nog(p, code)]
 
         # eerst de speltak met de minste kandidaten, zodat iemand die bij
         # meerdere speltakken zit niet bij een ruim bezette speltak wordt 'opgebruikt'
+
         reqs = sorted(reqs, key=lambda e: len(kandidaten(e)) /
                       max(1, d["speltakken"][e["speltak_id"]]["min_leiding"]))
         gebruikt = set()
@@ -161,7 +178,7 @@ def maak_planning(d):
         gelijk = GELIJK.get(code, {code})
         al = ([p for (s, p), c in bezet.items() if s == sid and c in gelijk] +
               [p for (s, p), t in nieuw.items() if s == sid and t["code"] in gelijk])
-        nodig = b["aantal"] - len(al)
+        nodig = b["aantal"] - len(al) and mag_nog(p, code)
         if nodig <= 0:
             continue
 
