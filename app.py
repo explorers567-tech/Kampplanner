@@ -192,7 +192,6 @@ def verwerk_invoer(person_id, terug_url, admin_modus):
     leidingrollen=LEIDINGROLLEN,
     geselecteerde_rollen=geselecteerde_rollen
 )
-)
 
 @app.route("/invoer", methods=["GET", "POST"])
 def invoer():
