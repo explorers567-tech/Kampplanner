@@ -4,6 +4,12 @@
 <p class="text-muted">De rolcodes uit het schema. Een pictogram kies je in <code>icons.py</code>.
    <a href="{{ url_for('admin') }}">← terug naar beheer</a></p>
 
+<div class="alert alert-info small">
+  <strong>Max. 1×</strong>: met dit vinkje krijgt iemand die klus hooguit één keer bij het automatisch indelen.
+  Alle klussen met dit vinkje tellen samen: wie er één heeft, krijgt er geen tweede bij,
+  ook geen andere met een vinkje. Standaard staan de wc-klussen zo.
+</div>
+
 <form method="post" class="row g-2 align-items-end mb-4">
   <input type="hidden" name="csrf" value="{{ csrf_token() }}">
   <div class="col-auto" style="width: 8rem">
@@ -14,12 +20,18 @@
     <label class="form-label" for="omschrijving">Omschrijving</label>
     <input class="form-control" id="omschrijving" name="omschrijving" maxlength="80" required placeholder="Opbouwen">
   </div>
-  <div class="col-auto"><button class="btn btn-success" type="submit">Toevoegen</button></div>
+  <div class="col-auto">
+    <div class="form-check mb-2">
+      <input class="form-check-input" type="checkbox" name="max_een" value="1" id="nieuw_max">
+      <label class="form-check-label" for="nieuw_max">Max. 1× per persoon</label>
+    </div>
+    <button class="btn btn-success" type="submit">Toevoegen</button>
+  </div>
 </form>
 
 <div class="table-responsive">
   <table class="table table-sm align-middle">
-    <thead><tr><th>Code</th><th></th><th>Omschrijving</th><th>In planning</th><th>In regels</th><th></th></tr></thead>
+    <thead><tr><th>Code</th><th></th><th>Omschrijving</th><th>Max. 1×</th><th>In planning</th><th>In regels</th><th></th></tr></thead>
     <tbody>
       {% for r in rollen %}
       {% set f = "rol" ~ r["id"] %}
@@ -33,6 +45,10 @@
         <td>{{ iconen.get(r["code"], "") }}</td>
         <td><input form="{{ f }}" class="form-control form-control-sm" name="omschrijving"
                    value="{{ r['omschrijving'] }}" maxlength="80" required></td>
+        <td class="text-center">
+          <input form="{{ f }}" class="form-check-input" type="checkbox" name="max_een" value="1"
+                 {% if r["max_een"] %}checked{% endif %}>
+        </td>
         <td>{{ r["n_toewijzingen"] }}</td>
         <td>{{ r["n_regels"] }}</td>
         <td class="text-nowrap">

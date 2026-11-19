@@ -2,119 +2,73 @@
 {% block inhoud %}
 <h1 class="h3">Aanwezigheid van {{ persoon["naam"] }}</h1>
 {% if admin_modus %}
-  <p class="text-muted">Je bewerkt dit als beheerder. Kies "—" om een keuze te wissen.
+  <p class="text-muted">Je bewerkt dit als beheerder.
      <a href="{{ url_for('admin') }}">← terug naar beheer</a></p>
 {% else %}
-  <p class="text-muted">Geef per dagdeel aan of je er bent.
-     Ochtend: 07:30–12:00, middag: 12:00–18:00, avond: 18:00–00:30,
-     nacht: 00:30–07:30.</p>
+  <p class="text-muted">Tik per dagdeel aan of je er bent. Ochtend: 07:30–12:00, middag: 12:00–18:00,
+     avond: 18:00–00:30, nacht: 00:30–07:30. Het streepje (–) betekent: nog niet ingevuld.</p>
 {% endif %}
+
+<style>
+  .kies .btn { min-height: 2.9rem; font-weight: 600; }
+  .kies .wis { flex: 0 0 3.2rem; }
+</style>
 
 <form method="post" enctype="multipart/form-data">
   <input type="hidden" name="csrf" value="{{ csrf_token() }}">
-  <div class="table-responsive">
-    <table class="table align-middle">
-      <thead>
-        <tr><th>Dagdeel</th><th>Ben je er?</th></tr>
-      </thead>
-      <tbody>
-        {% set ns = namespace(dag=None, soort=None) %}
-        {% for d in dagdelen %}
-          {% if d["soort"] != ns.soort %}
-            {% set ns.soort = d["soort"] %}
-            <tr class="table-dark"><td colspan="2"><strong>{{ d["soortnaam"] }}</strong></td></tr>
-          {% endif %}
-          {% if d["dag"] != ns.dag %}
-            {% set ns.dag = d["dag"] %}
-            <tr class="table-success"><td colspan="2"><strong>{{ d["dag"] }}</strong></td></tr>
-          {% endif %}
-          <tr>
-            <td>{{ d["naam"] }}</td>
-            <td>
-<div class="btn-group w-100" role="group">
 
-  <input type="radio"
-         class="btn-check"
-         name="{{ d['veld'] }}"
-         id="{{ d['veld'] }}_ja"
-         value="ja"
-         {% if d["status"] == "ja" %}checked{% endif %}>
-
-  <label class="btn btn-success"
-         for="{{ d['veld'] }}_ja">
-      ✅ Ja
-  </label>
-
-  <input type="radio"
-         class="btn-check"
-         name="{{ d['veld'] }}"
-         id="{{ d['veld'] }}_misschien"
-         value="misschien"
-         {% if d["status"] == "misschien" %}checked{% endif %}>
-
-  <label class="btn btn-warning"
-         for="{{ d['veld'] }}_misschien">
-      ❓ Misschien
-  </label>
-
-  <input type="radio"
-         class="btn-check"
-         name="{{ d['veld'] }}"
-         id="{{ d['veld'] }}_nee"
-         value="nee"
-         {% if d["status"] == "nee" %}checked{% endif %}>
-
-  <label class="btn btn-danger"
-         for="{{ d['veld'] }}_nee">
-      ❌ Nee
-  </label>
-
-</div>
-            </td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+  <h2 class="h5 mt-3">Ik ben leiding van</h2>
+  <p class="text-muted small">Je mag meer dan één aantikken.</p>
+  <input type="hidden" name="speltak_ingevuld" value="1">
+  <div class="row g-2 mb-4">
+    {% for sp in speltakken %}
+      <div class="col-6 col-md-4">
+        <input type="checkbox" class="btn-check" name="speltak" value="{{ sp['id'] }}"
+               id="sp{{ sp['id'] }}" autocomplete="off" {% if sp["gekozen"] %}checked{% endif %}>
+        <label class="btn btn-outline-success w-100 py-2" for="sp{{ sp['id'] }}">{{ sp["naam"] }}</label>
+      </div>
+    {% endfor %}
   </div>
 
-  <div class="mb-3">
+  {% set ns = namespace(dag=None, soort=None) %}
+  {% for d in dagdelen %}
+    {% if d["soort"] != ns.soort %}
+      {% set ns.soort = d["soort"] %}
+      <h2 class="h5 mt-4 pb-1 border-bottom">{{ d["soortnaam"] }}</h2>
+    {% endif %}
+    {% if d["dag"] != ns.dag %}
+      {% set ns.dag = d["dag"] %}
+      <h3 class="h6 mt-3 text-success">{{ d["dag"] }}</h3>
+    {% endif %}
+    {% set i = loop.index %}
+    <div class="mb-3 kies">
+      <div class="fw-semibold mb-1">{{ d["naam"] }}</div>
+      <div class="btn-group w-100" role="group" aria-label="{{ d['dag'] }} {{ d['naam'] }}">
+        <input type="radio" class="btn-check" name="{{ d['veld'] }}" id="dd{{ i }}_ja" value="ja"
+               autocomplete="off" {% if d["status"] == "ja" %}checked{% endif %}>
+        <label class="btn btn-outline-success flex-fill" for="dd{{ i }}_ja">Ja</label>
+
+        <input type="radio" class="btn-check" name="{{ d['veld'] }}" id="dd{{ i }}_m" value="misschien"
+               autocomplete="off" {% if d["status"] == "misschien" %}checked{% endif %}>
+        <label class="btn btn-outline-warning flex-fill" for="dd{{ i }}_m">Misschien</label>
+
+        <input type="radio" class="btn-check" name="{{ d['veld'] }}" id="dd{{ i }}_n" value="nee"
+               autocomplete="off" {% if d["status"] == "nee" %}checked{% endif %}>
+        <label class="btn btn-outline-danger flex-fill" for="dd{{ i }}_n">Nee</label>
+
+        <input type="radio" class="btn-check" name="{{ d['veld'] }}" id="dd{{ i }}_leeg" value=""
+               autocomplete="off" {% if not d["status"] %}checked{% endif %}>
+        <label class="btn btn-outline-secondary wis" for="dd{{ i }}_leeg" title="Nog niet ingevuld">–</label>
+      </div>
+    </div>
+  {% endfor %}
+
+  <div class="mb-3 mt-4">
     <label class="form-label" for="document">Document uploaden (optioneel, max 10 MB)</label>
     <input class="form-control" type="file" name="document" id="document">
   </div>
 
-<hr>
-
-<h3>Mijn leidingrollen</h3>
-<p class="text-muted">
-    Kies maximaal 3 rollen.
-</p>
-
-<div class="row">
-{% for code, naam in leidingrollen %}
-  <div class="col-md-4 mb-2">
-
-    <input
-      type="checkbox"
-      class="btn-check"
-      id="rol_{{ code }}"
-      name="leidingrollen"
-      value="{{ code }}"
-      {% if code in geselecteerde_rollen %}checked{% endif %}
-    >
-
-    <label
-      class="btn btn-outline-success w-100"
-      for="rol_{{ code }}"
-    >
-      {{ naam }}
-    </label>
-
-  </div>
-{% endfor %}
-</div>
-
-
-  <button class="btn btn-success" type="submit">Opslaan</button>
+  <button class="btn btn-success btn-lg w-100" type="submit">Opslaan</button>
 </form>
 
 {% if uploads %}

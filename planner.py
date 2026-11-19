@@ -83,28 +83,31 @@ def maak_planning(d):
 
         return groep_teller[(pid, groep)] < limiet
 
-    def toewijzen(sid, pid, code, reden, onzeker=False):
-        nieuw[(sid, pid)] = {
-            "slot": slots[sid],
-            "person_id": pid,
-            "naam": naam[pid],
-            "code": code,
-            "reden": reden,
-            "onzeker": onzeker
-    }
+    def beperkt = set(d.get("max_een", ()))     # rolcodes die maximaal 1x per persoon mogen voorkomen
+    klus_teller = Counter()                 # persoon -> aantal van die klussen (handmatig + voorgesteld)
+    for (sid, pid), code in bezet.items():
+        if code in beperkt:
+            klus_teller[pid] += 1
 
+    def mag(pid, code):
+        """Mag deze persoon deze klus (nog) krijgen? Klussen met een maximum tellen samen mee."""
+        return code not in beperkt or klus_teller[pid] < 1
+
+    def toewijzen(sid, pid, code, reden, onzeker=False):
+        nieuw[(sid, pid)] = {"slot": slots[sid], "person_id": pid, "naam": naam[pid],
+                             "code": code, "reden": reden, "onzeker": onzeker}
         teller[(pid, _groep(code))] += 1
         totaal[pid] += 1
-
-        groep = ROLGROEPEN.get(code)
-
-        if groep:
-            groep_teller[(pid, groep)] += 1
+        if code in beperkt:
+            klus_teller[pid] += 1
 
     def omschrijf(slot):
         # de locatie staat na 2+ spaties achter de titel: alleen de titel tonen
         titel = re.split(r"\s{2,}", (slot["titel"] or "").strip())[0]
         return f"{slot['dag']} {slot['start']} {titel}"
+    for pid, n in klus_teller.items():
+        if n > 1:
+            melding("info", f"{naam[pid]} heeft al {n} klussen met een maximum van 1 per persoon in het schema.")
 
     # ---- 1. organisatoren ----
     for o in sorted(d["org_slots"], key=lambda r: slots[r["slot_id"]]["volgorde"]):
@@ -142,10 +145,8 @@ def maak_planning(d):
 
         def kandidaten(e):
             return [p for p in d["speltak_leden"].get(e["speltak_id"], [])
-        if is_vrij(sid, p)
-        and status_van(p, slot) in ("ja", "misschien")
-        and mag_nog(p, code)]
-
+                    if is_vrij(sid, p) and status_van(p, slot) in ("ja", "misschien")
+                    and mag(p, e["rol_code"])]
         # eerst de speltak met de minste kandidaten, zodat iemand die bij
         # meerdere speltakken zit niet bij een ruim bezette speltak wordt 'opgebruikt'
 
@@ -197,30 +198,30 @@ def maak_planning(d):
                         f"{omschrijf(slot)}: {sp['naam']} heeft {aantal} van "
                         f"{min_leiding} leiding ({reden}).")
 
-    # ---- 3. algemene behoefte per slot (bijv. opbouw: 4 personen met rolcode OB) ----
+        # ---- 3. algemene behoefte per slot (bijv. opbouw: 4 personen met rolcode OB) ----
+    
     for b in sorted(d.get("behoeften", []), key=lambda r: slots[r["slot_id"]]["volgorde"]):
         slot = slots[b["slot_id"]]
         sid, code = slot["id"], b["rol_code"]
         gelijk = GELIJK.get(code, {code})
         al = ([p for (s, p), c in bezet.items() if s == sid and c in gelijk] +
               [p for (s, p), t in nieuw.items() if s == sid and t["code"] in gelijk])
-        nodig = b["aantal"] - len(al) and mag_nog(p, code)
+        nodig = b["aantal"] - len(al)
         if nodig <= 0:
             continue
 
         sleutel = lambda p: (teller[(p, _groep(code))], totaal[p], _lot(sid, p), naam[p])
-        vrij = [
-    p for p in naam
-    if is_vrij(sid, p)
-    and mag_nog(p, code)
-]
+        vrij = [p for p in naam if is_vrij(sid, p)]
+        toegestaan = [p for p in vrij if mag(p, code)]
+        begrensd = [p for p in vrij if p not in toegestaan
+                    and status_van(p, slot) in ("ja", "misschien")]
 
-        ja = sorted([p for p in vrij if status_van(p, slot) == "ja"], key=sleutel)[:nodig]
+        ja = sorted([p for p in toegestaan if status_van(p, slot) == "ja"], key=sleutel)[:nodig]
         for p in ja:
             toewijzen(sid, p, code, f"nodig: {b['aantal']}x {code}")
         nodig -= len(ja)
 
-        mis = sorted([p for p in vrij if status_van(p, slot) == "misschien" and is_vrij(sid, p)],
+        mis = sorted([p for p in toegestaan if status_van(p, slot) == "misschien" and is_vrij(sid, p)],
                      key=sleutel)[:nodig]
         for p in mis:
             toewijzen(sid, p, code, f"nodig: {b['aantal']}x {code}", onzeker=True)
@@ -230,10 +231,11 @@ def maak_planning(d):
         if nodig > 0:
             nee = [p for p in vrij if status_van(p, slot) == "nee"]
             zonder = [p for p in vrij if status_van(p, slot) is None]
+            extra = f", {len(begrensd)} hadden al zo'n klus gehad" if begrensd else ""
             melding("tekort", f"{omschrijf(slot)}: {code} heeft {b['aantal'] - nodig} van "
                               f"{b['aantal']} personen ({len(nee)} niet aanwezig, "
-                              f"{len(zonder)} nog niet ingevuld).")
-
+                              f"{len(zonder)} nog niet ingevuld{extra}).")
+            
     toewijzingen = sorted(nieuw.values(),
                           key=lambda t: (t["slot"]["volgorde"], t["reden"], t["naam"]))
     meldingen.sort(key=lambda m: (m["niveau"] != "tekort", m["tekst"]))
@@ -244,14 +246,14 @@ def maak_overzicht(d, toewijzingen):
     Geeft een lijst dicts; wie niets krijgt voorgesteld staat bovenaan, met een reden."""
     dagdelen = d.get("dagdelen") or sorted({(s["dag"], s["dagdeel"]) for s in d["slots"]})
     speltak_van = defaultdict(list)
+    echt_speltak = Counter()
     for sid, leden in d["speltak_leden"].items():
         for p in leden:
             speltak_van[p].append(d["speltakken"][sid]["naam"])
-    n_org = Counter()
-    for leden in d["org_leden"].values():
-        for p in leden:
-            n_org[p] += 1
-    handmatig = Counter(p for (s, p), c in d["bestaand"].items() if c not in ("#", "?"))
+            if d["speltakken"][sid].get("is_speltak", 1):
+                echt_speltak[p] += 1
+                for leden in d["org_leden"].values():
+                    handmatig = Counter(p for (s, p), c in d["bestaand"].items() if c not in ("#", "?"))
     voorgesteld = Counter(t["person_id"] for t in toewijzingen)
 
     rijen = []
@@ -266,7 +268,7 @@ def maak_overzicht(d, toewijzingen):
                          else "Overal 'nee' ingevuld.")
             elif ja == 0:
                 reden = "Alleen 'misschien' ingevuld: die worden alleen bij een tekort ingedeeld."
-            elif not speltak_van[pid] and not n_org[pid]:
+            elif not echt_speltak[pid] and not n_org[pid]:
                 reden = ("Geen speltak of activiteit gekoppeld, en er was geen 'nodig'-taak "
                          "(zoals opbouw) die nog open stond.")
             else:

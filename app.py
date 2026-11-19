@@ -20,6 +20,11 @@ import planner
 
 app = Flask(__name__)
 
+try:
+    db.migreer_5()
+except Exception as fout:
+    print("Migratie 5 mislukt:", fout)
+
 # Geheime sleutel: eenmalig aangemaakt en bewaard in een bestand naast app.py
 sleutel_pad = os.path.join(app.root_path, "secret_key.txt")
 if not os.path.exists(sleutel_pad):
@@ -144,7 +149,6 @@ def persoonlijk():
 
 def verwerk_invoer(person_id, terug_url, admin_modus):
     persoon, dagdelen, uploads = db.haal_beschikbaarheid(person_id)
-    geselecteerde_rollen = db.haal_persoon_rollen(person_id)
     if persoon is None:
         abort(404)
 
@@ -166,32 +170,23 @@ def verwerk_invoer(person_id, terug_url, admin_modus):
                 ingevuld.append((d["dag"], d["dagdeel"], status))
         db.sla_beschikbaarheid_op(person_id, ingevuld)
 
+        if request.form.get("speltak_ingevuld"):       # alleen als het deel in het formulier stond
+            geldig = db.geldige_speltak_ids()
+            speltak_ids = [int(x) for x in request.form.getlist("speltak")
+                           if x.isdigit() and int(x) in geldig]
+            db.sla_speltakken_op(person_id, speltak_ids)
+
         if opslag_naam:
             os.makedirs(UPLOAD_MAP, exist_ok=True)
             bestand.save(os.path.join(UPLOAD_MAP, opslag_naam))
             originele_naam = secure_filename(bestand.filename) or "document"
             db.sla_upload_op(person_id, originele_naam, opslag_naam)
 
-        rollen = request.form.getlist("leidingrollen")
-
-        if len(rollen) > 3:
-            flash("Je mag maximaal 3 leidingrollen kiezen.", "danger")
-            return redirect(terug_url)
-
-        db.sla_persoon_rollen_op(person_id, rollen)
-
         flash("Opgeslagen!", "success")
         return redirect(terug_url)
 
-    return render_template(
-    "invoer.html",
-    persoon=persoon,
-    dagdelen=dagdelen,
-    uploads=uploads,
-    admin_modus=admin_modus,
-    leidingrollen=LEIDINGROLLEN,
-    geselecteerde_rollen=geselecteerde_rollen
-)
+    return render_template("invoer.html", persoon=persoon, dagdelen=dagdelen, uploads=uploads,
+                           speltakken=db.haal_speltakken_van(person_id), admin_modus=admin_modus)
 
 @app.route("/invoer", methods=["GET", "POST"])
 def invoer():
@@ -798,7 +793,7 @@ def admin_rollen():
             flash("Vul een omschrijving in.", "danger")
         else:
             try:
-                db.maak_rol(code, omschrijving)
+                db.maak_rol(code, omschrijving, bool(request.form.get("max_een")))
                 flash(f"Rol {code} is toegevoegd.", "success")
             except ValueError as fout:
                 flash(str(fout), "danger")
@@ -813,10 +808,9 @@ def admin_rol_wijzig(rol_id):
     if not omschrijving:
         flash("De omschrijving mag niet leeg zijn.", "danger")
     else:
-        db.wijzig_rol(rol_id, omschrijving)
+        db.wijzig_rol(rol_id, omschrijving, bool(request.form.get("max_een")))
         flash("Rol bijgewerkt.", "success")
     return redirect(url_for("admin_rollen"))
-
 
 @app.route("/admin/rollen/<int:rol_id>/verwijder", methods=["POST"])
 @admin_vereist

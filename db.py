@@ -164,8 +164,9 @@ def haal_planner_data():
     personen = {r["id"]: r["naam"] for r in con.execute("SELECT id, naam FROM persons")}
     status = {(r["person_id"], r["dag"], r["dagdeel"]): r["status"]
               for r in con.execute("SELECT person_id, dag, dagdeel, status FROM aanwezigheid")}
-    speltakken = {r["id"]: {"naam": r["naam"], "min_leiding": r["min_leiding"]}
-                  for r in con.execute("SELECT id, naam, min_leiding FROM speltakken")}
+    speltakken = {r["id"]: {"naam": r["naam"], "min_leiding": r["min_leiding"],
+                            "is_speltak": r["is_speltak"]}
+                  for r in con.execute("SELECT id, naam, min_leiding, is_speltak FROM speltakken")}
     speltak_leden = defaultdict(list)
     for r in con.execute("SELECT speltak_id, person_id FROM persoon_speltak ORDER BY person_id"):
         speltak_leden[r["speltak_id"]].append(r["person_id"])
@@ -181,11 +182,13 @@ def haal_planner_data():
                 for r in con.execute(
                     "SELECT slot_id, person_id, role_id FROM assignments "
                     "WHERE bron IS NULL OR bron != 'auto'")}
+    max_een = {r["code"] for r in con.execute("SELECT code FROM roles WHERE max_een = 1")}
     con.close()
+    
     return {"slots": slots, "personen": personen, "status": status,
             "speltakken": speltakken, "speltak_leden": dict(speltak_leden),
             "org_slots": org_slots, "org_leden": dict(org_leden),
-            "eisen": eisen, "behoeften": behoeften, "bestaand": bestaand,
+            "eisen": eisen, "behoeften": behoeften, "bestaand": bestaand, "max_een": max_een,
             "dagdelen": haal_dagdelen()}
 
 def sla_beschikbaarheid_op(person_id, invoer):
@@ -379,7 +382,7 @@ def haal_persoon_profiel(person_id):
         SELECT sp.id, sp.naam, sp.min_leiding,
                EXISTS (SELECT 1 FROM persoon_speltak ps
                         WHERE ps.person_id = ? AND ps.speltak_id = sp.id) AS gekozen
-        FROM speltakken sp ORDER BY sp.id
+        FROM speltakken sp ORDER BY sp.volgorde, sp.id
     """, (person_id,)).fetchall()
     organisaties = con.execute("""
         SELECT o.id, o.naam,
@@ -552,7 +555,7 @@ def haal_eisen_matrix():
     slots = con.execute(
         "SELECT id, dag, start, titel FROM slots ORDER BY volgorde").fetchall()
     speltakken = con.execute(
-        "SELECT id, naam, min_leiding FROM speltakken ORDER BY id").fetchall()
+        "SELECT id, naam, min_leiding FROM speltakken WHERE is_speltak = 1 ORDER BY volgorde, id").fetchall()
     eisen = {}
     codes = {}
     for r in con.execute("SELECT slot_id, speltak_id, rol_code FROM slot_eisen"):
@@ -1000,7 +1003,7 @@ def verwijder_slot(slot_id):
 def haal_rollen_beheer():
     con = verbind()
     rijen = con.execute("""
-        SELECT r.id, r.code, r.omschrijving,
+        SELECT r.id, r.code, r.omschrijving, r.max_een,
                (SELECT COUNT(*) FROM assignments a WHERE a.role_id = r.code) AS n_toewijzingen,
                (SELECT COUNT(*) FROM organisatie_slots o WHERE o.rol_code = r.code)
              + (SELECT COUNT(*) FROM slot_eisen e WHERE e.rol_code = r.code)
@@ -1011,23 +1014,24 @@ def haal_rollen_beheer():
     return rijen
 
 
-def maak_rol(code, omschrijving):
+def maak_rol(code, omschrijving, max_een=False):
     con = verbind()
     try:
         if con.execute("SELECT 1 FROM roles WHERE upper(code) = upper(?)", (code,)).fetchone():
             raise ValueError(f"De rolcode {code} bestaat al.")
-        con.execute("INSERT INTO roles (code, omschrijving) VALUES (?, ?)", (code, omschrijving))
+        con.execute("INSERT INTO roles (code, omschrijving, max_een) VALUES (?, ?, ?)",
+                    (code, omschrijving, 1 if max_een else 0))
         con.commit()
     finally:
         con.close()
 
 
-def wijzig_rol(rol_id, omschrijving):
+def wijzig_rol(rol_id, omschrijving, max_een=False):
     con = verbind()
-    con.execute("UPDATE roles SET omschrijving = ? WHERE id = ?", (omschrijving, rol_id))
+    con.execute("UPDATE roles SET omschrijving = ?, max_een = ? WHERE id = ?",
+                (omschrijving, 1 if max_een else 0, rol_id))
     con.commit()
     con.close()
-
 
 def verwijder_rol(rol_id):
     con = verbind()
@@ -1095,6 +1099,68 @@ def wis_handmatige_planning(ook_aantallen=False):
             con.execute("UPDATE slots SET aantal = NULL")
         con.commit()
         return n
+    except Exception:
+        con.rollback()
+        raise
+    finally:
+        con.close()
+
+def migreer_5():
+    """Draait bij elke start en is veilig om vaker te draaien: extra functies bij 'leiding van',
+    een vaste volgorde, en klussen met een maximum per persoon."""
+    con = verbind()
+    try:
+        def kolommen(tabel):
+            return [k[1] for k in con.execute(f"PRAGMA table_info({tabel})")]
+
+        if "is_speltak" not in kolommen("speltakken"):
+            con.execute("ALTER TABLE speltakken ADD COLUMN is_speltak INTEGER NOT NULL DEFAULT 1")
+        if "volgorde" not in kolommen("speltakken"):
+            con.execute("ALTER TABLE speltakken ADD COLUMN volgorde INTEGER NOT NULL DEFAULT 0")
+
+        # naam, leiding nodig bij slapen/opstaan, is het een echte speltak?
+        lijst = [("Bevers", 2, 1), ("Kabouters", 2, 1), ("Welpen", 2, 1),
+                 ("Gidsen", 1, 1), ("Verkenners", 1, 1), ("Explorers", 1, 1),
+                 ("Stamlid", 0, 0), ("Plusscoutslid", 0, 0),
+                 ("Bestuurslid", 0, 0), ("Vrijwilliger", 0, 0)]
+        for i, (naam, min_leiding, is_speltak) in enumerate(lijst, 1):
+            con.execute("INSERT OR IGNORE INTO speltakken (naam, min_leiding) VALUES (?, ?)",
+                        (naam, min_leiding))
+            con.execute("UPDATE speltakken SET volgorde = ?, is_speltak = ? WHERE naam = ?",
+                        (i, is_speltak, naam))
+
+        if "max_een" not in kolommen("roles"):
+            con.execute("ALTER TABLE roles ADD COLUMN max_een INTEGER NOT NULL DEFAULT 0")
+            con.execute("UPDATE roles SET max_een = 1 WHERE code IN ('TW', 'TB', 'TS', 'TV')")
+        con.commit()
+    except Exception:
+        con.rollback()
+        raise
+    finally:
+        con.close()
+
+
+def haal_speltakken_van(person_id):
+    """Alle keuzes bij 'leiding van', in vaste volgorde, met gekozen = 0 of 1."""
+    con = verbind()
+    rijen = con.execute("""
+        SELECT sp.id, sp.naam,
+               EXISTS (SELECT 1 FROM persoon_speltak ps
+                        WHERE ps.person_id = ? AND ps.speltak_id = sp.id) AS gekozen
+        FROM speltakken sp ORDER BY sp.volgorde, sp.id
+    """, (person_id,)).fetchall()
+    con.close()
+    return rijen
+
+
+def sla_speltakken_op(person_id, speltak_ids):
+    con = verbind()
+    try:
+        con.execute("DELETE FROM persoon_speltak WHERE person_id = ?", (person_id,))
+        for sid in speltak_ids:
+            con.execute("INSERT OR IGNORE INTO persoon_speltak (person_id, speltak_id) VALUES (?, ?)",
+                        (person_id, sid))
+        con.commit()
     except Exception:
         con.rollback()
         raise
