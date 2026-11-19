@@ -83,7 +83,7 @@ def maak_planning(d):
 
         return groep_teller[(pid, groep)] < limiet
 
-    def beperkt = set(d.get("max_een", ()))     # rolcodes die maximaal 1x per persoon mogen voorkomen
+    beperkt = set(d.get("max_een", ()))     # rolcodes die maximaal 1x per persoon mogen voorkomen
     klus_teller = Counter()                 # persoon -> aantal van die klussen (handmatig + voorgesteld)
     for (sid, pid), code in bezet.items():
         if code in beperkt:
@@ -143,18 +143,20 @@ def maak_planning(d):
             continue
         slot = slots[sid]
 
-        def kandidaten(e):
-            return [p for p in d["speltak_leden"].get(e["speltak_id"], [])
-                    if is_vrij(sid, p) and status_van(p, slot) in ("ja", "misschien")
-                    and mag(p, e["rol_code"])]
+    def kandidaten(e):
+        return [p for p in d["speltak_leden"].get(e["speltak_id"], [])
+            if is_vrij(sid, p)
+            and status_van(p, slot) in ("ja", "misschien")
+            and mag(p, e["rol_code"])
+            and mag_nog(p, e["rol_code"])]        
         # eerst de speltak met de minste kandidaten, zodat iemand die bij
         # meerdere speltakken zit niet bij een ruim bezette speltak wordt 'opgebruikt'
 
-        reqs = sorted(reqs, key=lambda e: len(kandidaten(e)) /
-                      max(1, d["speltakken"][e["speltak_id"]]["min_leiding"]))
-        gebruikt = set()
+    reqs = sorted(reqs, key=lambda e: len(kandidaten(e)) /
+             max(1, d["speltakken"][e["speltak_id"]]["min_leiding"]))
+    gebruikt = set()
 
-        for e in reqs:
+    for e in reqs:
             sp = d["speltakken"][e["speltak_id"]]
             leden = d["speltak_leden"].get(e["speltak_id"], [])
             code = e["rol_code"]
@@ -212,7 +214,7 @@ def maak_planning(d):
 
         sleutel = lambda p: (teller[(p, _groep(code))], totaal[p], _lot(sid, p), naam[p])
         vrij = [p for p in naam if is_vrij(sid, p)]
-        toegestaan = [p for p in vrij if mag(p, code)]
+        toegestaan = [p for p in vrij if mag(p, code) and mag_nog(p, code)]
         begrensd = [p for p in vrij if p not in toegestaan
                     and status_van(p, slot) in ("ja", "misschien")]
 
@@ -244,27 +246,63 @@ def maak_planning(d):
 def maak_overzicht(d, toewijzingen):
     """Per persoon: wat is ingevuld, wat staat er al, wat wordt voorgesteld en waarom (niet).
     Geeft een lijst dicts; wie niets krijgt voorgesteld staat bovenaan, met een reden."""
-    dagdelen = d.get("dagdelen") or sorted({(s["dag"], s["dagdeel"]) for s in d["slots"]})
+    
+    dagdelen = d.get("dagdelen") or sorted(
+        {(s["dag"], s["dagdeel"]) for s in d["slots"]}
+        )
+    
     speltak_van = defaultdict(list)
     echt_speltak = Counter()
+    n_org = Counter()
+
+    for leden in d["org_leden"].values():
+        for p in leden:
+            n_org[p] += 1
+
+    handmatig = Counter(
+        p for (s, p), c in d["bestaand"].items()
+        if c not in ("#", "?")
+        )
+
+    voorgesteld = Counter(
+        t["person_id"] for t in toewijzingen
+        )
+
+    for sid, leden in d["speltak_leden"].items():
+        for p in leden:
+            speltak_van[p].append(
+                d["speltakken"][sid]["naam"]
+            )
+
+            if d["speltakken"][sid].get("is_speltak", 1):
+                echt_speltak[p] += 1
+
     for sid, leden in d["speltak_leden"].items():
         for p in leden:
             speltak_van[p].append(d["speltakken"][sid]["naam"])
-            if d["speltakken"][sid].get("is_speltak", 1):
-                echt_speltak[p] += 1
-                for leden in d["org_leden"].values():
-                    handmatig = Counter(p for (s, p), c in d["bestaand"].items() if c not in ("#", "?"))
-    voorgesteld = Counter(t["person_id"] for t in toewijzingen)
 
     rijen = []
+
     for pid, naam in d["personen"].items():
-        tel = Counter(d["status"].get((pid, dag, dd)) for dag, dd in dagdelen)
-        ja, mis, nee = tel["ja"], tel["misschien"], tel["nee"]
+        tel = Counter(
+            d["status"].get((pid, dag, dd))
+            for dag, dd in dagdelen
+        )
+
+        ja = tel["ja"]
+        mis = tel["misschien"]
+        nee = tel["nee"]
         leeg = len(dagdelen) - ja - mis - nee
-        reden = ""
-        if voorgesteld[pid] == 0:
-            if ja == 0 and mis == 0:
-                reden = ("Nog geen aanwezigheid ingevuld." if nee == 0
+
+    reden = ""
+
+    if voorgesteld[pid] == 0:
+
+            if d["speltakken"][sid].get("is_speltak", 1):
+                echt_speltak[p] += 1
+            if voorgesteld[pid] == 0:
+                if ja == 0 and mis == 0:
+                    reden = ("Nog geen aanwezigheid ingevuld." if nee == 0
                          else "Overal 'nee' ingevuld.")
             elif ja == 0:
                 reden = "Alleen 'misschien' ingevuld: die worden alleen bij een tekort ingedeeld."
@@ -273,7 +311,7 @@ def maak_overzicht(d, toewijzingen):
                          "(zoals opbouw) die nog open stond.")
             else:
                 reden = "Er stond niets meer open waarvoor deze persoon in aanmerking kwam."
-        rijen.append({"naam": naam, "speltak": ", ".join(speltak_van[pid]), "n_org": n_org[pid],
+    rijen.append({"naam": naam, "speltak": ", ".join(speltak_van[pid]), "n_org": n_org[pid],
                       "ja": ja, "misschien": mis, "nee": nee, "leeg": leeg,
                       "totaal": len(dagdelen), "handmatig": handmatig[pid],
                       "voorgesteld": voorgesteld[pid], "reden": reden})
