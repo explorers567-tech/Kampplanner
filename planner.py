@@ -133,6 +133,7 @@ def maak_planning(d):
                                   f"aanwezigheid voor {slot['dag']} {slot['dagdeel']} nog niet ingevuld.")
 
     # ---- 2. slapen en opstaan, per speltak ----
+
     per_slot = defaultdict(list)
     for e in d["eisen"]:
         per_slot[e["slot_id"]].append(e)
@@ -143,20 +144,18 @@ def maak_planning(d):
             continue
         slot = slots[sid]
 
-    def kandidaten(e):
-        return [p for p in d["speltak_leden"].get(e["speltak_id"], [])
-            if is_vrij(sid, p)
-            and status_van(p, slot) in ("ja", "misschien")
-            and mag(p, e["rol_code"])
-            and mag_nog(p, e["rol_code"])]        
+        def kandidaten(e):
+            return [p for p in d["speltak_leden"].get(e["speltak_id"], [])
+                    if is_vrij(sid, p) and status_van(p, slot) in ("ja", "misschien")
+                    and mag(p, e["rol_code"])]
+
         # eerst de speltak met de minste kandidaten, zodat iemand die bij
         # meerdere speltakken zit niet bij een ruim bezette speltak wordt 'opgebruikt'
+        reqs = sorted(reqs, key=lambda e: len(kandidaten(e)) /
+                      max(1, d["speltakken"][e["speltak_id"]]["min_leiding"]))
+        gebruikt = set()
 
-    reqs = sorted(reqs, key=lambda e: len(kandidaten(e)) /
-             max(1, d["speltakken"][e["speltak_id"]]["min_leiding"]))
-    gebruikt = set()
-
-    for e in reqs:
+        for e in reqs:
             sp = d["speltakken"][e["speltak_id"]]
             leden = d["speltak_leden"].get(e["speltak_id"], [])
             code = e["rol_code"]
@@ -195,10 +194,7 @@ def maak_planning(d):
                              f"{len(zonder)} nog niet ingevuld, "
                              f"{len(bezig)} al ingedeeld voor iets anders of afwezig in de planning")
                 melding("tekort", f"{omschrijf(slot)}: {sp['naam']} heeft {aantal} van "
-                                  f"{min_leiding} leiding ({reason}).".replace("{reason}", reden)
-                        if False else
-                        f"{omschrijf(slot)}: {sp['naam']} heeft {aantal} van "
-                        f"{min_leiding} leiding ({reden}).")
+                                  f"{min_leiding} leiding ({reden}).")
 
         # ---- 3. algemene behoefte per slot (bijv. opbouw: 4 personen met rolcode OB) ----
     
