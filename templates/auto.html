@@ -10,6 +10,18 @@
   heeft gekozen of niets heeft ingevuld wordt niet ingedeeld.
 </div>
 
+{% if klus_codes %}
+  <div class="alert alert-secondary small">
+    Klussen met een maximum: <strong>{{ klus_codes|join(", ") }}</strong>. Iemand krijgt er samen hooguit
+    <strong>{{ max_klus }}</strong> van. Instellen kan onder <a href="{{ url_for('admin_rollen') }}">Rollen</a>.
+  </div>
+{% else %}
+  <div class="alert alert-warning small">
+    Er is nog geen enkele klus gemarkeerd met een maximum, dus de wc's hebben geen begrenzing.
+    Zet het vinkje bij de wc-rollen onder <a href="{{ url_for('admin_rollen') }}">Rollen</a>.
+  </div>
+{% endif %}
+
 {% if meldingen %}
   <h2 class="h5">Aandachtspunten</h2>
   <ul class="list-group mb-4">
@@ -30,7 +42,9 @@
       <tr>
         <th>Persoon</th><th>Speltak</th><th>Activiteiten</th>
         <th title="Aantal dagdelen met ja / misschien / nee / niet ingevuld">Aanwezigheid</th>
-        <th>Nu in planning</th><th>Voorgesteld</th><th>Opmerking</th>
+        <th>Nu in planning</th><th>Voorgesteld</th>
+        <th title="Aantal klussen met een maximum (zoals wc's), nu in het schema plus voorgesteld">Klussen met max.</th>
+        <th>Opmerking</th>
       </tr>
     </thead>
     <tbody>
@@ -48,6 +62,11 @@
         </td>
         <td>{{ r["handmatig"] }}</td>
         <td><strong>{{ r["voorgesteld"] }}</strong></td>
+        <td class="text-nowrap">
+          {% if r["klussen"] > max_klus %}<span class="badge text-bg-danger">{{ r["klussen"] }}</span>
+          {% else %}{{ r["klussen"] }}{% endif %}
+          {% if r["klussen_hand"] %}<small class="text-muted">(waarvan {{ r["klussen_hand"] }} al in het schema)</small>{% endif %}
+        </td>
         <td><small>{{ r["reden"] }}</small></td>
       </tr>
       {% endfor %}

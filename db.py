@@ -153,7 +153,6 @@ def haal_schema(soort=None):
     con.close()
     return slots, personen, cellen
 
-
 def haal_planner_data():
     con = verbind()
     slots = []
@@ -177,18 +176,19 @@ def haal_planner_data():
     for r in con.execute("SELECT organisatie_id, person_id FROM persoon_organisatie ORDER BY person_id"):
         org_leden[r["organisatie_id"]].append(r["person_id"])
     eisen = [dict(r) for r in con.execute("SELECT slot_id, speltak_id, rol_code FROM slot_eisen")]
-    behoeften = [dict(r) for r in con.execute("SELECT slot_id, rol_code, aantal FROM slot_behoefte ORDER BY slot_id, rol_code")]
+    behoeften = [dict(r) for r in con.execute(
+        "SELECT slot_id, rol_code, aantal FROM slot_behoefte ORDER BY slot_id, rol_code")]
     bestaand = {(r["slot_id"], r["person_id"]): r["role_id"]
                 for r in con.execute(
                     "SELECT slot_id, person_id, role_id FROM assignments "
                     "WHERE bron IS NULL OR bron != 'auto'")}
     max_een = {r["code"] for r in con.execute("SELECT code FROM roles WHERE max_een = 1")}
     con.close()
-    
     return {"slots": slots, "personen": personen, "status": status,
             "speltakken": speltakken, "speltak_leden": dict(speltak_leden),
             "org_slots": org_slots, "org_leden": dict(org_leden),
-            "eisen": eisen, "behoeften": behoeften, "bestaand": bestaand, "max_een": max_een,
+            "eisen": eisen, "behoeften": behoeften, "bestaand": bestaand,
+            "max_een": max_een, "max_klus_aantal": haal_max_klus_aantal(),
             "dagdelen": haal_dagdelen()}
 
 def sla_beschikbaarheid_op(person_id, invoer):
@@ -1164,5 +1164,39 @@ def sla_speltakken_op(person_id, speltak_ids):
     except Exception:
         con.rollback()
         raise
+    finally:
+        con.close()
+def migreer_6():
+    """Instellingen, o.a. het maximum aantal keer per persoon voor de gemarkeerde klussen."""
+    con = verbind()
+    try:
+        con.execute("""CREATE TABLE IF NOT EXISTS instellingen (
+                           sleutel TEXT PRIMARY KEY,
+                           waarde  TEXT NOT NULL)""")
+        con.execute("INSERT OR IGNORE INTO instellingen (sleutel, waarde) VALUES ('max_klus_aantal', '1')")
+        con.commit()
+    except Exception:
+        con.rollback()
+        raise
+    finally:
+        con.close()
+
+
+def haal_max_klus_aantal():
+    try:
+        con = verbind()
+        r = con.execute("SELECT waarde FROM instellingen WHERE sleutel = 'max_klus_aantal'").fetchone()
+        con.close()
+        return max(1, int(r["waarde"])) if r else 1
+    except Exception:
+        return 1
+
+
+def zet_max_klus_aantal(aantal):
+    con = verbind()
+    try:
+        con.execute("""INSERT INTO instellingen (sleutel, waarde) VALUES ('max_klus_aantal', ?)
+                       ON CONFLICT(sleutel) DO UPDATE SET waarde = excluded.waarde""", (str(int(aantal)),))
+        con.commit()
     finally:
         con.close()

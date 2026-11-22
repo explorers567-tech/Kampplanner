@@ -83,15 +83,16 @@ def maak_planning(d):
 
         return groep_teller[(pid, groep)] < limiet
 
-    beperkt = set(d.get("max_een", ()))     # rolcodes die maximaal 1x per persoon mogen voorkomen
-    klus_teller = Counter()                 # persoon -> aantal van die klussen (handmatig + voorgesteld)
+    beperkt = set(d.get("max_een", ()))              # rolcodes waarvoor een maximum geldt (de wc's)
+    max_aantal = max(1, int(d.get("max_klus_aantal", 1)))
+    klus_teller = Counter()                          # persoon -> aantal van die klussen (handmatig + voorgesteld)
     for (sid, pid), code in bezet.items():
         if code in beperkt:
             klus_teller[pid] += 1
 
     def mag(pid, code):
-        """Mag deze persoon deze klus (nog) krijgen? Klussen met een maximum tellen samen mee."""
-        return code not in beperkt or klus_teller[pid] < 1
+        """Mag deze persoon deze klus (nog) krijgen? Alle gemarkeerde klussen tellen samen mee."""
+        return code not in beperkt or klus_teller[pid] < max_aantal
 
     def toewijzen(sid, pid, code, reden, onzeker=False):
         nieuw[(sid, pid)] = {"slot": slots[sid], "person_id": pid, "naam": naam[pid],
@@ -106,9 +107,9 @@ def maak_planning(d):
         titel = re.split(r"\s{2,}", (slot["titel"] or "").strip())[0]
         return f"{slot['dag']} {slot['start']} {titel}"
     for pid, n in klus_teller.items():
-        if n > 1:
-            melding("info", f"{naam[pid]} heeft al {n} klussen met een maximum van 1 per persoon in het schema.")
-
+        if n > max_aantal:
+            melding("info", f"{naam[pid]} heeft al {n} van de gemarkeerde klussen in het schema "
+                            f"(het maximum is {max_aantal}). Die staan er handmatig in en blijven staan.")
     # ---- 1. organisatoren ----
     for o in sorted(d["org_slots"], key=lambda r: slots[r["slot_id"]]["volgorde"]):
         slot = slots[o["slot_id"]]
@@ -229,7 +230,8 @@ def maak_planning(d):
         if nodig > 0:
             nee = [p for p in vrij if status_van(p, slot) == "nee"]
             zonder = [p for p in vrij if status_van(p, slot) is None]
-            extra = f", {len(begrensd)} hadden al zo'n klus gehad" if begrensd else ""
+            extra = (f", {len(begrensd)} hadden al het maximum van {max_aantal} zulke klussen bereikt"
+                     if begrensd else "")
             melding("tekort", f"{omschrijf(slot)}: {code} heeft {b['aantal'] - nodig} van "
                               f"{b['aantal']} personen ({len(nee)} niet aanwezig, "
                               f"{len(zonder)} nog niet ingevuld{extra}).")
@@ -242,63 +244,33 @@ def maak_planning(d):
 def maak_overzicht(d, toewijzingen):
     """Per persoon: wat is ingevuld, wat staat er al, wat wordt voorgesteld en waarom (niet).
     Geeft een lijst dicts; wie niets krijgt voorgesteld staat bovenaan, met een reden."""
-    
-    dagdelen = d.get("dagdelen") or sorted(
-        {(s["dag"], s["dagdeel"]) for s in d["slots"]}
-        )
-    
+    dagdelen = d.get("dagdelen") or sorted({(s["dag"], s["dagdeel"]) for s in d["slots"]})
     speltak_van = defaultdict(list)
     echt_speltak = Counter()
-    n_org = Counter()
-
-    for leden in d["org_leden"].values():
-        for p in leden:
-            n_org[p] += 1
-
-    handmatig = Counter(
-        p for (s, p), c in d["bestaand"].items()
-        if c not in ("#", "?")
-        )
-
-    voorgesteld = Counter(
-        t["person_id"] for t in toewijzingen
-        )
-
-    for sid, leden in d["speltak_leden"].items():
-        for p in leden:
-            speltak_van[p].append(
-                d["speltakken"][sid]["naam"]
-            )
-
-            if d["speltakken"][sid].get("is_speltak", 1):
-                echt_speltak[p] += 1
-
     for sid, leden in d["speltak_leden"].items():
         for p in leden:
             speltak_van[p].append(d["speltakken"][sid]["naam"])
-
-    rijen = []
-
-    for pid, naam in d["personen"].items():
-        tel = Counter(
-            d["status"].get((pid, dag, dd))
-            for dag, dd in dagdelen
-        )
-
-        ja = tel["ja"]
-        mis = tel["misschien"]
-        nee = tel["nee"]
-        leeg = len(dagdelen) - ja - mis - nee
-
-    reden = ""
-
-    if voorgesteld[pid] == 0:
-
             if d["speltakken"][sid].get("is_speltak", 1):
                 echt_speltak[p] += 1
-            if voorgesteld[pid] == 0:
-                if ja == 0 and mis == 0:
-                    reden = ("Nog geen aanwezigheid ingevuld." if nee == 0
+    n_org = Counter()
+    for leden in d["org_leden"].values():
+        for p in leden:
+            n_org[p] += 1
+    beperkt = set(d.get("max_een", ()))
+    handmatig = Counter(p for (s, p), c in d["bestaand"].items() if c not in ("#", "?"))
+    klus_hand = Counter(p for (s, p), c in d["bestaand"].items() if c in beperkt)
+    klus_nieuw = Counter(t["person_id"] for t in toewijzingen if t["code"] in beperkt)
+    voorgesteld = Counter(t["person_id"] for t in toewijzingen)
+
+    rijen = []
+    for pid, naam in d["personen"].items():
+        tel = Counter(d["status"].get((pid, dag, dd)) for dag, dd in dagdelen)
+        ja, mis, nee = tel["ja"], tel["misschien"], tel["nee"]
+        leeg = len(dagdelen) - ja - mis - nee
+        reden = ""
+        if voorgesteld[pid] == 0:
+            if ja == 0 and mis == 0:
+                reden = ("Nog geen aanwezigheid ingevuld." if nee == 0
                          else "Overal 'nee' ingevuld.")
             elif ja == 0:
                 reden = "Alleen 'misschien' ingevuld: die worden alleen bij een tekort ingedeeld."
@@ -307,9 +279,10 @@ def maak_overzicht(d, toewijzingen):
                          "(zoals opbouw) die nog open stond.")
             else:
                 reden = "Er stond niets meer open waarvoor deze persoon in aanmerking kwam."
-    rijen.append({"naam": naam, "speltak": ", ".join(speltak_van[pid]), "n_org": n_org[pid],
+        rijen.append({"naam": naam, "speltak": ", ".join(speltak_van[pid]), "n_org": n_org[pid],
                       "ja": ja, "misschien": mis, "nee": nee, "leeg": leeg,
                       "totaal": len(dagdelen), "handmatig": handmatig[pid],
-                      "voorgesteld": voorgesteld[pid], "reden": reden})
+                      "voorgesteld": voorgesteld[pid], "reden": reden,
+                      "klussen": klus_hand[pid] + klus_nieuw[pid], "klussen_hand": klus_hand[pid]})
     rijen.sort(key=lambda r: (r["reden"] == "", r["naam"]))
     return rijen

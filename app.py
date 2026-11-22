@@ -22,8 +22,9 @@ app = Flask(__name__)
 
 try:
     db.migreer_5()
+    db.migreer_6()
 except Exception as fout:
-    print("Migratie 5 mislukt:", fout)
+    print("Migratie mislukt:", fout)
 
 # Geheime sleutel: eenmalig aangemaakt en bewaard in een bestand naast app.py
 sleutel_pad = os.path.join(app.root_path, "secret_key.txt")
@@ -486,9 +487,14 @@ def admin_auto():
             flash(f"{n} automatische toewijzingen verwijderd.", "success")
         return redirect(url_for("admin_auto"))
 
-    toewijzingen, meldingen = planner.maak_planning(db.haal_planner_data())
+    data = db.haal_planner_data()
+    toewijzingen, meldingen = planner.maak_planning(data)
     return render_template("auto.html", toewijzingen=toewijzingen, meldingen=meldingen,
-                           n_auto=db.tel_auto_planning())
+                           overzicht=planner.maak_overzicht(data, toewijzingen),
+                           n_auto=db.tel_auto_planning(),
+                           max_klus=data.get("max_klus_aantal", 1),
+                           klus_codes=sorted(data.get("max_een", [])))
+
 
 # ---------- pictogrammen bij rolcodes ----------
 
@@ -798,7 +804,21 @@ def admin_rollen():
             except ValueError as fout:
                 flash(str(fout), "danger")
         return redirect(url_for("admin_rollen"))
-    return render_template("rollen.html", rollen=db.haal_rollen_beheer(), iconen=icons.ICONEN)
+    return render_template("rollen.html", rollen=db.haal_rollen_beheer(), iconen=icons.ICONEN,
+                           max_klus=db.haal_max_klus_aantal())
+
+
+@app.route("/admin/rollen/max-klussen", methods=["POST"])
+@admin_vereist
+def admin_klus_max():
+    waarde = request.form.get("max_klus_aantal", "").strip()
+    if not waarde.isdigit() or not (1 <= int(waarde) <= 20):
+        flash("Vul een getal van 1 tot 20 in.", "danger")
+    else:
+        db.zet_max_klus_aantal(int(waarde))
+        flash(f"Het maximum is nu {int(waarde)} per persoon. Klik onder Automatisch indelen "
+              "op 'Indeling opslaan' om de nieuwe regel toe te passen.", "success")
+    return redirect(url_for("admin_rollen"))
 
 
 @app.route("/admin/rollen/<int:rol_id>/wijzig", methods=["POST"])
