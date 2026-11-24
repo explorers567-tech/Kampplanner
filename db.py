@@ -990,6 +990,7 @@ def verwijder_slot(slot_id):
             con.execute("DELETE FROM availability WHERE slot_id = ?", (slot_id,))
         con.execute("DELETE FROM slots WHERE id = ?", (slot_id,))
         _hernummer(con)
+        print("Verwijder slot:", slot_id) #tijdelijke regel MZ-----------
         con.commit()
     except Exception:
         con.rollback()
