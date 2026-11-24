@@ -23,7 +23,45 @@
   <div class="col-auto"><button class="btn btn-success" type="submit">Toevoegen</button></div>
 </form>
 
-<div class="table-responsive">
+<!-- Alleen zichtbaar op mobiel -->
+<div class="d-md-none mb-4">
+
+  <h2 class="h5">Persoonlijke links</h2>
+  <p class="text-muted">
+    Tik op WhatsApp om direct een persoonlijke link te versturen.
+  </p>
+
+  {% for p in personen %}
+  <div class="card mb-2">
+    <div class="card-body">
+
+      <strong>{{ p["naam"] }}</strong>
+
+      <div class="mt-2 d-flex gap-2">
+
+        <button
+          type="button"
+          class="btn btn-outline-success btn-sm"
+          onclick="navigator.clipboard.writeText('{{ url_for('inloggen_token', token=p['token'], _external=True) }}')">
+          📋 Kopieer
+        </button>
+
+        <a
+          class="btn btn-success btn-sm"
+          href="https://wa.me/?text={{ ('Hoi ' ~ p['naam'] ~ ', dit is jouw persoonlijke Kampplanner-link: ' ~ url_for('inloggen_token', token=p['token'], _external=True)) | urlencode }}">
+          💬 WhatsApp
+        </a>
+
+      </div>
+
+    </div>
+  </div>
+  {% endfor %}
+
+</div>
+
+<div class="table-responsive d-none d-md-block">
+  
   <table class="table table-sm align-middle">
     <thead>
       <tr>
@@ -58,8 +96,12 @@
         </td>
         <td>{{ p["n_uploads"] }}</td>
         <td>
-          <input class="form-control form-control-sm" readonly onclick="this.select()"
-                 value="{{ url_for('inloggen_token', token=p['token'], _external=True) }}">
+          <button
+            type="button"
+            class="btn btn-sm btn-success"
+            onclick="navigator.clipboard.writeText('{{ url_for('inloggen_token', token=p['token'], _external=True) }}')">
+            📋 Kopieer link
+          </button>
         </td>
         <td class="text-nowrap">
           <a class="btn btn-sm btn-outline-primary"
