@@ -17,6 +17,7 @@ import db
 import excel_aanwezigheid
 import icons
 import planner
+APP_VERSIE = "2026-11-26-V01"
 
 app = Flask(__name__)
 
@@ -71,6 +72,9 @@ def is_admin():
 app.jinja_env.globals["csrf_token"] = csrf_token
 app.jinja_env.globals["is_admin"] = is_admin
 
+@app.context_processor
+def injectie():
+    return {"app_versie": APP_VERSIE}
 
 @app.before_request
 def controleer_csrf():
