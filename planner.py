@@ -161,9 +161,10 @@ def maak_planning(d):
                     and status_van(p, slot) in ("ja", "misschien")
                     and mag(p, e["rol_code"])
                     and mag_rol(p, e["rol_code"])]
-    # eerst de speltak met de minste kandidaten, zodat iemand die bij
-    # meerdere speltakken zit niet bij een ruim bezette speltak wordt 'opgebruikt'
-    reqs = sorted(reqs, key=lambda e: len(kandidaten(e)) /
+
+        reqs = sorted(
+            reqs, 
+            key=lambda e: len(kandidaten(e)) /
             max(1, d["speltakken"][e["speltak_id"]]["min_leiding"])
     )
     
