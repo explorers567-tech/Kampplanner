@@ -42,6 +42,7 @@ def maak_planning(d):
     slots = {s["id"]: s for s in d["slots"]}
     volgorde = [s["id"] for s in d["slots"]]
     naam = d["personen"]
+    persoon_rollen = d.get("persoon_rollen", {})
     bezet = dict(d["bestaand"])          # (slot, persoon) -> code, handmatig
     nieuw = {}                           # (slot, persoon) -> toewijzing
     meldingen, gezien = [], set()
@@ -69,6 +70,15 @@ def maak_planning(d):
 
     def is_vrij(sid, pid):
         return (sid, pid) not in bezet and (sid, pid) not in nieuw
+
+    def mag_rol(pid, code):
+        rollen = persoon_rollen.get(pid, set())
+
+        # Geen rollen ingesteld = alles toegestaan
+        if not rollen:
+            return True
+
+        return code in rollen
 
     def mag_nog(pid, code):
         groep = ROLGROEPEN.get(code)
@@ -145,18 +155,19 @@ def maak_planning(d):
             continue
         slot = slots[sid]
 
-        def kandidaten(e):
-            return [p for p in d["speltak_leden"].get(e["speltak_id"], [])
-                    if is_vrij(sid, p) and status_van(p, slot) in ("ja", "misschien")
-                    and mag(p, e["rol_code"])]
+    def kandidaten(e):
+        return [p for p in d["speltak_leden"].get(e["speltak_id"], [])
+            if is_vrij(sid, p)
+            and status_van(p, slot) in ("ja", "misschien")
+            and mag(p, e["rol_code"])
+            and mag_rol(p, e["rol_code"])]
+    # eerst de speltak met de minste kandidaten, zodat iemand die bij
+    # meerdere speltakken zit niet bij een ruim bezette speltak wordt 'opgebruikt'
+    reqs = sorted(reqs, key=lambda e: len(kandidaten(e)) /
+            max(1, d["speltakken"][e["speltak_id"]]["min_leiding"]))
+    gebruikt = set()
 
-        # eerst de speltak met de minste kandidaten, zodat iemand die bij
-        # meerdere speltakken zit niet bij een ruim bezette speltak wordt 'opgebruikt'
-        reqs = sorted(reqs, key=lambda e: len(kandidaten(e)) /
-                      max(1, d["speltakken"][e["speltak_id"]]["min_leiding"]))
-        gebruikt = set()
-
-        for e in reqs:
+    for e in reqs:
             sp = d["speltakken"][e["speltak_id"]]
             leden = d["speltak_leden"].get(e["speltak_id"], [])
             code = e["rol_code"]
@@ -211,7 +222,7 @@ def maak_planning(d):
 
         sleutel = lambda p: (teller[(p, _groep(code))], totaal[p], _lot(sid, p), naam[p])
         vrij = [p for p in naam if is_vrij(sid, p)]
-        toegestaan = [p for p in vrij if mag(p, code) and mag_nog(p, code)]
+        toegestaan = [p for p in vrij if mag(p, code) and mag_nog(p, code) and mag_rol(p, code)]        
         begrensd = [p for p in vrij if p not in toegestaan
                     and status_van(p, slot) in ("ja", "misschien")]
 

@@ -206,6 +206,12 @@ def haal_planner_data():
         s = dict(r)
         s["dagdeel"] = dagdeel_van(s["start"])
         slots.append(s)
+    persoon_rollen = defaultdict(set)
+    for r in con.execute("""
+        SELECT person_id, role_code
+        FROM person_roles
+        """):
+        persoon_rollen[r["person_id"]].add(r["role_code"])
     personen = {r["id"]: r["naam"] for r in con.execute("SELECT id, naam FROM persons")}
     status = {(r["person_id"], r["dag"], r["dagdeel"]): r["status"]
               for r in con.execute("SELECT person_id, dag, dagdeel, status FROM aanwezigheid")}
@@ -230,12 +236,20 @@ def haal_planner_data():
                     "WHERE bron IS NULL OR bron != 'auto'")}
     max_een = {r["code"] for r in con.execute("SELECT code FROM roles WHERE max_een = 1")}
     con.close()
-    return {"slots": slots, "personen": personen, "status": status,
-            "speltakken": speltakken, "speltak_leden": dict(speltak_leden),
-            "org_slots": org_slots, "org_leden": dict(org_leden),
-            "eisen": eisen, "behoeften": behoeften, "bestaand": bestaand,
-            "max_een": max_een, "max_klus_aantal": haal_max_klus_aantal(),
-            "dagdelen": haal_dagdelen()}
+    return {"slots": slots, 
+            "personen": personen, 
+            "status": status,
+            "speltakken": speltakken, 
+            "speltak_leden": dict(speltak_leden),
+            "org_slots": org_slots, 
+            "org_leden": dict(org_leden),
+            "eisen": eisen, 
+            "behoeften": behoeften, 
+            "bestaand": bestaand,
+            "max_een": max_een, 
+            "max_klus_aantal": haal_max_klus_aantal(),
+            "dagdelen": haal_dagdelen(),
+            "persoon_rollen": dict(persoon_rollen)}
 
 def sla_beschikbaarheid_op(person_id, invoer):
     """invoer = lijst van (dag, dagdeel, status); lege status wist de keuze."""
