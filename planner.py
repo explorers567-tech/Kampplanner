@@ -155,16 +155,18 @@ def maak_planning(d):
             continue
         slot = slots[sid]
 
-    def kandidaten(e):
-        return [p for p in d["speltak_leden"].get(e["speltak_id"], [])
-            if is_vrij(sid, p)
-            and status_van(p, slot) in ("ja", "misschien")
-            and mag(p, e["rol_code"])
-            and mag_rol(p, e["rol_code"])]
+        def kandidaten(e):
+            return [p for p in d["speltak_leden"].get(e["speltak_id"], [])
+                    if is_vrij(sid, p)
+                    and status_van(p, slot) in ("ja", "misschien")
+                    and mag(p, e["rol_code"])
+                    and mag_rol(p, e["rol_code"])]
     # eerst de speltak met de minste kandidaten, zodat iemand die bij
     # meerdere speltakken zit niet bij een ruim bezette speltak wordt 'opgebruikt'
     reqs = sorted(reqs, key=lambda e: len(kandidaten(e)) /
-            max(1, d["speltakken"][e["speltak_id"]]["min_leiding"]))
+            max(1, d["speltakken"][e["speltak_id"]]["min_leiding"])
+    )
+    
     gebruikt = set()
 
     for e in reqs:
