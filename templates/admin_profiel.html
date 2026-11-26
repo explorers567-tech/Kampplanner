@@ -42,6 +42,20 @@
         Alleen deze rollen mogen automatisch aan deze persoon worden toegewezen.
     </div>
 
+  <div class="mb-2">
+    <button type="button"
+            class="btn btn-sm btn-outline-success"
+            id="alles-aan">
+        Alles aanvinken
+    </button>
+
+    <button type="button"
+            class="btn btn-sm btn-outline-secondary"
+            id="alles-uit">
+        Alles uitvinken
+    </button>
+  </div>
+
     {% for r in rollen %}
     <div class="form-check">
         <input class="form-check-input"
@@ -61,4 +75,19 @@
 
   <button class="btn btn-success" type="submit">Opslaan</button>
 </form>
+
+<script>
+document.getElementById('alles-aan').addEventListener('click', function() {
+    document.querySelectorAll('input[name="rol"]').forEach(function(cb) {
+        cb.checked = true;
+    });
+});
+
+document.getElementById('alles-uit').addEventListener('click', function() {
+    document.querySelectorAll('input[name="rol"]').forEach(function(cb) {
+        cb.checked = false;
+    });
+});
+</script>
+
 {% endblock %}
