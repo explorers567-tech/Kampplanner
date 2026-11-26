@@ -21,6 +21,7 @@ import planner
 app = Flask(__name__)
 
 try:
+    db.zorg_voor_database()
     db.migreer_5()
     db.migreer_6()
 except Exception as fout:
@@ -38,7 +39,7 @@ app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024        # max 10 MB
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=14)
 
-UPLOAD_MAP = os.path.join(app.root_path, "uploads")
+UPLOAD_MAP = os.environ.get("KAMPPLANNER_UPLOADS") or os.path.join(app.root_path, "uploads")
 TOEGESTAAN = {"pdf", "png", "jpg", "jpeg", "docx"}
 STATUSSEN = {"", "ja", "nee", "misschien"}
 

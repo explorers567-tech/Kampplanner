@@ -4,7 +4,8 @@ import sqlite3
 import time
 from collections import Counter, defaultdict
 
-DB_PAD = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "kampplanner.db")
+DB_PAD = os.environ.get("KAMPPLANNER_DB") or os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "data", "kampplanner.db")
 
 # ---------- indeling van de dag (in minuten sinds middernacht) ----------
 # Pas deze waarden aan als de grenzen anders moeten.
@@ -16,6 +17,17 @@ MIDDAG_EINDE = 18 * 60        # 18:00
 DAGDEELNAMEN = {"ochtend": "Ochtend", "middag": "Middag", "avond": "Avond", "nacht": "Nacht"}
 DAGDEELVOLGORDE = ["ochtend", "middag", "avond", "nacht"]
 
+def zorg_voor_database():
+    """Op een lege schijf (eerste start) de startdatabase uit de repository kopiëren."""
+    if os.path.exists(DB_PAD):
+        return
+    zaad = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "startdatabase.db")
+    os.makedirs(os.path.dirname(DB_PAD), exist_ok=True)
+    if os.path.exists(zaad):
+        shutil.copy2(zaad, DB_PAD)
+        print("Database gekopieerd naar", DB_PAD)
+    else:
+        print("Geen startdatabase gevonden op", zaad)
 
 def dagdeel_van(start):
     """'19:30' -> 'avond', '00:15' -> 'avond', '00:30' -> 'nacht', '07:50' -> 'ochtend'."""
