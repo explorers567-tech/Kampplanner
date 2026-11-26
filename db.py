@@ -260,6 +260,19 @@ def sla_beschikbaarheid_op(person_id, invoer):
     finally:
         con.close()
 
+def haal_rollen():
+    con = verbind()
+
+    rollen = con.execute("""
+        SELECT code, omschrijving
+        FROM roles
+        WHERE code NOT IN ('#', '?')
+        ORDER BY code
+    """).fetchall()
+
+    con.close()
+    return rollen
+
 def haal_persoon_rollen(person_id):
     con = verbind()
 

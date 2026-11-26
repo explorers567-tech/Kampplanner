@@ -306,6 +306,8 @@ def admin_verwijder(person_id):
 
 def admin_profiel(person_id):
     persoon, speltakken, organisaties = db.haal_persoon_profiel(person_id)
+    rollen = db.haal_rollen()
+    gekozen_rollen = db.haal_persoon_rollen(person_id)
     if persoon is None:
         abort(404)
 
@@ -317,12 +319,20 @@ def admin_profiel(person_id):
         org_ids = [int(x) for x in request.form.getlist("organisatie")
                    if x.isdigit() and int(x) in geldige_orgs]
 
+        rollen = request.form.getlist("rol") 
+        db.sla_persoon_rollen_op(person_id, rollen)
         db.sla_persoon_profiel_op(person_id, speltak_ids, org_ids)
         flash("Profiel opgeslagen.", "success")
         return redirect(url_for("admin_profiel", person_id=person_id))
 
-    return render_template("admin_profiel.html", persoon=persoon,
-                           speltakken=speltakken, organisaties=organisaties)
+    return render_template(
+        "admin_profiel.html",
+        persoon=persoon,
+        speltakken=speltakken,
+        organisaties=organisaties,
+        rollen=rollen,
+        gekozen_rollen=gekozen_rollen
+        )
 
 @app.route("/admin/invoer/<int:person_id>", methods=["GET", "POST"])
 @admin_vereist

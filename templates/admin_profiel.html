@@ -35,6 +35,29 @@
   </div>
 
   <label>Voorkeursrollen</label>
+  <div class="mb-4">
+    <strong>Toegestane rollen voor automatische planning</strong>
+
+    <div class="form-text mb-2">
+        Alleen deze rollen mogen automatisch aan deze persoon worden toegewezen.
+    </div>
+
+    {% for r in rollen %}
+    <div class="form-check">
+        <input class="form-check-input"
+               type="checkbox"
+               name="rol"
+               value="{{ r['code'] }}"
+               id="rol{{ r['code'] }}"
+               {% if r['code'] in gekozen_rollen %}checked{% endif %}>
+
+        <label class="form-check-label"
+               for="rol{{ r['code'] }}">
+            {{ r['code'] }} - {{ r['omschrijving'] }}
+        </label>
+    </div>
+    {% endfor %}
+</div>
 
   <button class="btn btn-success" type="submit">Opslaan</button>
 </form>
