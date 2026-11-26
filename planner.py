@@ -157,20 +157,17 @@ def maak_planning(d):
 
         def kandidaten(e):
             return [p for p in d["speltak_leden"].get(e["speltak_id"], [])
-                    if is_vrij(sid, p)
-                    and status_van(p, slot) in ("ja", "misschien")
+                    if is_vrij(sid, p) and status_van(p, slot) in ("ja", "misschien")
                     and mag(p, e["rol_code"])
                     and mag_rol(p, e["rol_code"])]
 
-        reqs = sorted(
-            reqs, 
-            key=lambda e: len(kandidaten(e)) /
-            max(1, d["speltakken"][e["speltak_id"]]["min_leiding"])
-    )
-    
-    gebruikt = set()
+        # eerst de speltak met de minste kandidaten, zodat iemand die bij
+        # meerdere speltakken zit niet bij een ruim bezette speltak wordt 'opgebruikt'
+        reqs = sorted(reqs, key=lambda e: len(kandidaten(e)) /
+                      max(1, d["speltakken"][e["speltak_id"]]["min_leiding"]))
+        gebruikt = set()
 
-    for e in reqs:
+        for e in reqs:
             sp = d["speltakken"][e["speltak_id"]]
             leden = d["speltak_leden"].get(e["speltak_id"], [])
             code = e["rol_code"]
@@ -225,7 +222,7 @@ def maak_planning(d):
 
         sleutel = lambda p: (teller[(p, _groep(code))], totaal[p], _lot(sid, p), naam[p])
         vrij = [p for p in naam if is_vrij(sid, p)]
-        toegestaan = [p for p in vrij if mag(p, code) and mag_nog(p, code) and mag_rol(p, code)]        
+        toegestaan = [p for p in vrij if mag(p, code) and mag_nog(p, code)]
         begrensd = [p for p in vrij if p not in toegestaan
                     and status_van(p, slot) in ("ja", "misschien")]
 
