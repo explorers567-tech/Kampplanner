@@ -56,6 +56,21 @@ def verbind():
 
 # ---------- overzichten ----------
 
+def haal_dagen_keuze():
+    con = verbind()
+
+    dagen = [
+        r["dag"]
+        for r in con.execute("""
+            SELECT DISTINCT dag
+            FROM slots
+            ORDER BY volgorde
+        """)
+    ]
+
+    con.close()
+    return dagen
+
 def haal_telling():
     con = verbind()
     rijen = con.execute("""
@@ -70,23 +85,42 @@ def haal_telling():
     con.close()
     return rijen
 
-def haal_persoonlijk(person_id):
+def haal_persoonlijk(person_id, dag=None):
     con = verbind()
+
     persoon = con.execute(
-        "SELECT id, naam FROM persons WHERE id = ?", (person_id,)
+        "SELECT id, naam FROM persons WHERE id = ?",
+        (person_id,)
     ).fetchone()
-    rijen = con.execute("""
-        SELECT s.dag, s.start, s.titel, a.role_id AS code, r.omschrijving
-        FROM assignments a
-        JOIN slots s ON s.id = a.slot_id
-        LEFT JOIN roles r ON r.code = a.role_id
-        WHERE a.person_id = ?
-          AND a.role_id NOT IN ('#', '?')
-        ORDER BY s.volgorde
-    """, (person_id,)).fetchall()
+
+    if dag:
+        rijen = con.execute("""
+            SELECT s.dag, s.start, s.titel,
+                   a.role_id AS code,
+                   r.omschrijving
+            FROM assignments a
+            JOIN slots s ON s.id = a.slot_id
+            LEFT JOIN roles r ON r.code = a.role_id
+            WHERE a.person_id = ?
+              AND s.dag = ?
+              AND a.role_id NOT IN ('#', '?')
+            ORDER BY s.volgorde
+        """, (person_id, dag)).fetchall()
+    else:
+        rijen = con.execute("""
+            SELECT s.dag, s.start, s.titel,
+                   a.role_id AS code,
+                   r.omschrijving
+            FROM assignments a
+            JOIN slots s ON s.id = a.slot_id
+            LEFT JOIN roles r ON r.code = a.role_id
+            WHERE a.person_id = ?
+              AND a.role_id NOT IN ('#', '?')
+            ORDER BY s.volgorde
+        """, (person_id,)).fetchall()
+
     con.close()
     return persoon, rijen
-
 
 # ---------- aanwezigheid per dagdeel ----------
 

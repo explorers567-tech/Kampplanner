@@ -141,13 +141,30 @@ def schema():
 @inloggen_vereist
 def persoonlijk():
     person_id = session.get("person_id")
-    if not person_id:                      # beheerder zonder eigen persoon
+
+    if not person_id:
         return redirect(url_for("admin"))
-    persoon, rijen = db.haal_persoonlijk(person_id)
+
+    gekozen_dag = request.args.get("dag")
+
+    persoon, rijen = db.haal_persoonlijk(
+        person_id,
+        gekozen_dag
+    )
+
     if persoon is None:
-        session.pop("person_id", None)     # persoon bestaat niet meer
+        session.pop("person_id", None)
         abort(404)
-    return render_template("persoonlijk.html", persoon=persoon, rijen=rijen)
+
+    dagen = db.haal_dagen_keuze()
+
+    return render_template(
+        "persoonlijk.html",
+        persoon=persoon,
+        rijen=rijen,
+        dagen=dagen,
+        gekozen_dag=gekozen_dag
+    )
 
 def verwerk_invoer(person_id, terug_url, admin_modus):
     persoon, dagdelen, uploads = db.haal_beschikbaarheid(person_id)
