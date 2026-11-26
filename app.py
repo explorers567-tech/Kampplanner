@@ -17,15 +17,17 @@ import db
 import excel_aanwezigheid
 import icons
 import planner
+APP_VERSIE = "2026-11-26-V01"
 
 app = Flask(__name__)
 
 try:
+    db.zorg_voor_database()
     db.migreer_5()
     db.migreer_6()
 except Exception as fout:
     print("Migratie mislukt:", fout)
-
+# TEST update invloed 26-11
 # Geheime sleutel: eenmalig aangemaakt en bewaard in een bestand naast app.py
 sleutel_pad = os.path.join(app.root_path, "secret_key.txt")
 if not os.path.exists(sleutel_pad):
@@ -38,7 +40,7 @@ app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024        # max 10 MB
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=14)
 
-UPLOAD_MAP = os.path.join(app.root_path, "uploads")
+UPLOAD_MAP = os.environ.get("KAMPPLANNER_UPLOADS") or os.path.join(app.root_path, "uploads")
 TOEGESTAAN = {"pdf", "png", "jpg", "jpeg", "docx"}
 STATUSSEN = {"", "ja", "nee", "misschien"}
 
@@ -70,6 +72,9 @@ def is_admin():
 app.jinja_env.globals["csrf_token"] = csrf_token
 app.jinja_env.globals["is_admin"] = is_admin
 
+@app.context_processor
+def injectie():
+    return {"app_versie": APP_VERSIE}
 
 @app.before_request
 def controleer_csrf():
@@ -140,13 +145,30 @@ def schema():
 @inloggen_vereist
 def persoonlijk():
     person_id = session.get("person_id")
-    if not person_id:                      # beheerder zonder eigen persoon
+
+    if not person_id:
         return redirect(url_for("admin"))
-    persoon, rijen = db.haal_persoonlijk(person_id)
+
+    gekozen_dag = request.args.get("dag")
+
+    persoon, rijen = db.haal_persoonlijk(
+        person_id,
+        gekozen_dag
+    )
+
     if persoon is None:
-        session.pop("person_id", None)     # persoon bestaat niet meer
+        session.pop("person_id", None)
         abort(404)
-    return render_template("persoonlijk.html", persoon=persoon, rijen=rijen)
+
+    dagen = db.haal_dagen_keuze()
+
+    return render_template(
+        "persoonlijk.html",
+        persoon=persoon,
+        rijen=rijen,
+        dagen=dagen,
+        gekozen_dag=gekozen_dag
+    )
 
 def verwerk_invoer(person_id, terug_url, admin_modus):
     persoon, dagdelen, uploads = db.haal_beschikbaarheid(person_id)

@@ -4,7 +4,8 @@ import sqlite3
 import time
 from collections import Counter, defaultdict
 
-DB_PAD = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "kampplanner.db")
+DB_PAD = os.environ.get("KAMPPLANNER_DB") or os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "data", "kampplanner.db")
 
 # ---------- indeling van de dag (in minuten sinds middernacht) ----------
 # Pas deze waarden aan als de grenzen anders moeten.
@@ -16,6 +17,17 @@ MIDDAG_EINDE = 18 * 60        # 18:00
 DAGDEELNAMEN = {"ochtend": "Ochtend", "middag": "Middag", "avond": "Avond", "nacht": "Nacht"}
 DAGDEELVOLGORDE = ["ochtend", "middag", "avond", "nacht"]
 
+def zorg_voor_database():
+    """Op een lege schijf (eerste start) de startdatabase uit de repository kopiëren."""
+    if os.path.exists(DB_PAD):
+        return
+    zaad = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "startdatabase.db")
+    os.makedirs(os.path.dirname(DB_PAD), exist_ok=True)
+    if os.path.exists(zaad):
+        shutil.copy2(zaad, DB_PAD)
+        print("Database gekopieerd naar", DB_PAD)
+    else:
+        print("Geen startdatabase gevonden op", zaad)
 
 def dagdeel_van(start):
     """'19:30' -> 'avond', '00:15' -> 'avond', '00:30' -> 'nacht', '07:50' -> 'ochtend'."""
@@ -44,6 +56,21 @@ def verbind():
 
 # ---------- overzichten ----------
 
+def haal_dagen_keuze():
+    con = verbind()
+
+    dagen = [
+        r["dag"]
+        for r in con.execute("""
+            SELECT DISTINCT dag
+            FROM slots
+            ORDER BY volgorde
+        """)
+    ]
+
+    con.close()
+    return dagen
+
 def haal_telling():
     con = verbind()
     rijen = con.execute("""
@@ -58,23 +85,42 @@ def haal_telling():
     con.close()
     return rijen
 
-def haal_persoonlijk(person_id):
+def haal_persoonlijk(person_id, dag=None):
     con = verbind()
+
     persoon = con.execute(
-        "SELECT id, naam FROM persons WHERE id = ?", (person_id,)
+        "SELECT id, naam FROM persons WHERE id = ?",
+        (person_id,)
     ).fetchone()
-    rijen = con.execute("""
-        SELECT s.dag, s.start, s.titel, a.role_id AS code, r.omschrijving
-        FROM assignments a
-        JOIN slots s ON s.id = a.slot_id
-        LEFT JOIN roles r ON r.code = a.role_id
-        WHERE a.person_id = ?
-          AND a.role_id NOT IN ('#', '?')
-        ORDER BY s.volgorde
-    """, (person_id,)).fetchall()
+
+    if dag:
+        rijen = con.execute("""
+            SELECT s.dag, s.start, s.titel,
+                   a.role_id AS code,
+                   r.omschrijving
+            FROM assignments a
+            JOIN slots s ON s.id = a.slot_id
+            LEFT JOIN roles r ON r.code = a.role_id
+            WHERE a.person_id = ?
+              AND s.dag = ?
+              AND a.role_id NOT IN ('#', '?')
+            ORDER BY s.volgorde
+        """, (person_id, dag)).fetchall()
+    else:
+        rijen = con.execute("""
+            SELECT s.dag, s.start, s.titel,
+                   a.role_id AS code,
+                   r.omschrijving
+            FROM assignments a
+            JOIN slots s ON s.id = a.slot_id
+            LEFT JOIN roles r ON r.code = a.role_id
+            WHERE a.person_id = ?
+              AND a.role_id NOT IN ('#', '?')
+            ORDER BY s.volgorde
+        """, (person_id,)).fetchall()
+
     con.close()
     return persoon, rijen
-
 
 # ---------- aanwezigheid per dagdeel ----------
 
