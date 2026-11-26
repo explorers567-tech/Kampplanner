@@ -26,7 +26,7 @@ try:
     db.migreer_6()
 except Exception as fout:
     print("Migratie mislukt:", fout)
-
+# TEST update invloed 26-11
 # Geheime sleutel: eenmalig aangemaakt en bewaard in een bestand naast app.py
 sleutel_pad = os.path.join(app.root_path, "secret_key.txt")
 if not os.path.exists(sleutel_pad):
