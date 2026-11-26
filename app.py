@@ -319,7 +319,8 @@ def admin_profiel(person_id):
         org_ids = [int(x) for x in request.form.getlist("organisatie")
                    if x.isdigit() and int(x) in geldige_orgs]
 
-        rollen = request.form.getlist("rol") 
+        rollen = request.form.getlist("rol")
+        print("ROLLEN ONTVANGEN:", rollen) 
         db.sla_persoon_rollen_op(person_id, rollen)
         db.sla_persoon_profiel_op(person_id, speltak_ids, org_ids)
         flash("Profiel opgeslagen.", "success")

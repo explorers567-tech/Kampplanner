@@ -302,6 +302,8 @@ def haal_persoon_rollen(person_id):
     return [r["role_code"] for r in rows]
 
 def sla_persoon_rollen_op(person_id, rollen):
+    print("OPSLAAN:", person_id, rollen)
+    
     con = verbind()
 
     con.execute(
